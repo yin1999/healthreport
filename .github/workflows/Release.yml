@@ -1,0 +1,66 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      VERSION:
+        description: 'version(vX.Y.Z) to release'
+        required: true
+        default: 'v'
+      MESSAGE:
+        description: 'message for release body'
+      GoVersion:
+        description: >
+          Go version(X.Y.Z) for build
+          default: latest go version
+  push:
+    tags:
+    - '*'
+
+env:
+  MESSAGE: ${{ github.event.inputs.MESSAGE }}
+  VERSION: ${{ github.event.inputs.VERSION }}
+  GoVersion: ${{ github.event.inputs.GoVersion }}
+
+jobs:
+  release:
+    name: Release on GitHub
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set GoVersion
+      if: env.GoVersion == ''
+      run: |
+        echo "GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g')" >> ${GITHUB_ENV}
+
+    - name: Set ENV for 'Create Tag'
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> ${GITHUB_ENV}
+
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GoVersion }}
+
+    - name: Dep
+      run: make dep
+
+    - name: Build
+      run: |
+        make build VERSION=${{ env.VERSION }} TARGET=linux
+        make build VERSION=${{ env.VERSION }} TARGET=windows
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          healthreport
+          healthreport.exe
+        tag_name: ${{ env.VERSION }}
+        name: "健康打卡${{ env.VERSION }}"
+        body: ${{ env.MESSAGE }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,29 @@
+name: GoCodeCheck
+
+on:
+  push:
+    branches: [ master ]
+    paths-ignore:
+    - '.**'
+    - 'email-template.json'
+    - 'LICENSE'
+    - 'Makefile'
+    - 'README.md'
+    - '_script/**'
+  pull_request:
+    branches: [ master ]
+    paths-ignore:
+    - '.**'
+    - 'email-template.json'
+    - 'LICENSE'
+    - 'Makefile'
+    - 'README.md'
+    - '_script/**'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Refresh report card
+      run: |
+        curl -d "repo=github.com/${{ github.repository }}" -X POST https://goreportcard.com/checks
