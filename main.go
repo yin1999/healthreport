@@ -78,9 +78,7 @@ func main() {
 		}
 	}
 
-	for _, line := range cfg.Show() {
-		logger.Println(line)
-	}
+	cfg.Show(logger)
 
 	emailCfg, err = utils.LoadEmailConfig(mailConfigPath)
 	if err == nil {
@@ -193,7 +191,7 @@ func punchServe(ctx context.Context, account [2]string) {
 		return
 	}
 
-	logger.Print("Pausing...")
+	logger.Print("Pausing...\n")
 	select {
 	case <-pause(cfg.Time()):
 		break

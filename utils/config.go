@@ -25,6 +25,11 @@ type Config struct {
 	PunchTime           selfTime `json:"punchTime"`
 }
 
+// Printer interface
+type Printer interface {
+	Printf(format string, v ...interface{})
+}
+
 // JSONWriter write config to file
 func JSONWriter(t interface{}, path string) error {
 	dir := filepath.Dir(path)
@@ -68,11 +73,9 @@ func (t *Config) Check() error {
 }
 
 // Show return configuration
-func (t Config) Show() []string {
-	var s [2]string
-	s[0] = fmt.Sprintf("Maximum number of attempts: %d", t.MaxNumberOfAttempts)
-	s[1] = fmt.Sprintf("Time set: %02d:%02d", t.PunchTime.hour, t.PunchTime.minute)
-	return s[:]
+func (t Config) Show(logger Printer) {
+	logger.Printf("Maximum number of attempts: %d\n", t.MaxNumberOfAttempts)
+	logger.Printf("Time set: %02d:%02d\n", t.PunchTime.hour, t.PunchTime.minute)
 }
 
 // GetFromStdin 从Stdin获取配置信息
