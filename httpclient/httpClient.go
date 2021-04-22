@@ -104,19 +104,23 @@ func getFormDetail(ctx context.Context, cookies []*http.Cookie) (*HealthForm, *Q
 	if reader, err = gzip.NewReader(res.Body); err != nil { // gzip数据解压
 		return nil, nil, err
 	}
-	scanner := bufio.NewScanner(reader)
+	defer reader.Close()
 
-	for scanner.Scan() && scanner.Text() != "<script type=\"text/javascript\">" {
+	bufferReader := bufio.NewReader(reader)
+
+	var line string
+
+	for err == nil && line != "<script type=\"text/javascript\">" {
+		line, err = scanLine(bufferReader, true)
 	}
 
 	var (
-		line    string
 		resData [4][]byte // wid, userId, personalInfo, healthFormData
-		index   int
+		index   = 0
 	)
 
-	for index = 0; scanner.Scan() && index != 4; {
-		line = scanner.Text()
+	for err == nil && index != 4 {
+		line, err = scanLine(bufferReader, index != 3)
 		if strings.HasPrefix(line, prefixArray[index]) {
 			if resData[index], err = parseData(line, symbolArray[index]); err != nil {
 				return nil, nil, err
@@ -317,6 +321,21 @@ func getSlice(data string, startSymbol, endSymbol byte) (res []byte, err error) 
 
 	res = make([]byte, length+2)
 	copy(res, data[start:])
+
+	return res, err
+}
+
+// scanLine scan a line which may contains trailing '\r'.
+// clearRest is used to drop the rest of the reading line,
+// when it's unnecessary to read more line, it could be false
+func scanLine(reader *bufio.Reader, clearRest bool) (string, error) {
+	data, err := reader.ReadSlice('\n') // data is not a copy, use it carefully
+	res := string(data)                 // copy the data to string
+	if clearRest {
+		for err == bufio.ErrBufferFull {
+			_, err = reader.ReadSlice('\n')
+		}
+	}
 
 	return res, err
 }
