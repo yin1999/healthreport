@@ -5,8 +5,6 @@ import "fmt"
 // index for resData
 const (
 	indexWID uint8 = iota
-	indexUserId
-	indexPersonalInfo
 	indexHealthFormData
 )
 
@@ -24,15 +22,8 @@ const (
 
 // QueryParam query param struct
 type QueryParam struct {
-	wid    string
-	userID string
-}
-
-// PersonalInfo form for get personal information
-type PersonalInfo struct {
-	StudentID string `json:"XGH_336526"`
-	Name      string `json:"XM_1474"`
-	ID        string `json:"SFZJH_859173"`
+	Wid    string `url:"wid"`
+	UserID string `url:"userId"`
 }
 
 // HealthForm form for post

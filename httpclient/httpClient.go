@@ -25,8 +25,8 @@ var (
 		{"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"},
 	}
 
-	prefixArray = [...]string{"    var _selfFormWid", "    var _userId", "            dataDetail", "            fillDetail"}
-	symbolArray = [...]htmlSymbol{symbolString, symbolString, symbolJSON, symbolJSON}
+	prefixArray = [...]string{"    var _selfFormWid", "            fillDetail"}
+	symbolArray = [...]htmlSymbol{symbolString, symbolJSON}
 
 	timeZone = time.Local // 打卡时区设置，默认为local
 )
@@ -111,16 +111,16 @@ func getFormDetail(ctx context.Context, cookies []*http.Cookie) (*HealthForm, *Q
 	var line string
 
 	for err == nil && line != "<script type=\"text/javascript\">" {
-		line, err = scanLine(bufferReader, true)
+		line, err = scanLine(bufferReader)
 	}
 
 	var (
-		resData [4][]byte // wid, userId, personalInfo, healthFormData
+		resData [2][]byte // wid, healthFormData
 		index   = 0
 	)
 
-	for err == nil && index != 4 {
-		line, err = scanLine(bufferReader, index != 3)
+	for err == nil && index != 2 {
+		line, err = scanLine(bufferReader)
 		if strings.HasPrefix(line, prefixArray[index]) {
 			if resData[index], err = parseData(line, symbolArray[index]); err != nil {
 				return nil, nil, err
@@ -129,14 +129,8 @@ func getFormDetail(ctx context.Context, cookies []*http.Cookie) (*HealthForm, *Q
 		}
 	}
 
-	if index != 4 {
+	if index != 2 {
 		return nil, nil, ErrCannotParseData
-	}
-
-	person := &PersonalInfo{}
-
-	if err = json.Unmarshal(resData[indexPersonalInfo], person); err != nil {
-		return nil, nil, err
 	}
 
 	form := &HealthForm{}
@@ -145,13 +139,11 @@ func getFormDetail(ctx context.Context, cookies []*http.Cookie) (*HealthForm, *Q
 		return nil, nil, err
 	}
 
-	form.Name = person.Name
-	form.ID = person.ID
 	form.DataTime = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
 
 	params := &QueryParam{
-		wid:    string(resData[indexWID]),
-		userID: string(resData[indexUserId]),
+		Wid:    string(resData[indexWID]),
+		UserID: form.StudentID,
 	}
 
 	return form, params, nil
@@ -239,8 +231,8 @@ func postForm(ctx context.Context, form *HealthForm, params *QueryParam, cookies
 	}
 
 	buf := value.Encode()
-
-	req, err := http.NewRequestWithContext(ctx,
+	var req *http.Request
+	req, err = http.NewRequestWithContext(ctx,
 		http.MethodPost,
 		"http://form.hhu.edu.cn/pdc/formDesignApi/dataFormSave",
 		strings.NewReader(buf))
@@ -256,11 +248,12 @@ func postForm(ctx context.Context, form *HealthForm, params *QueryParam, cookies
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 
-	queryValue := url.Values{}
-	queryValue.Set("wid", params.wid)
-	queryValue.Set("userId", params.userID)
+	value, err = query.Values(params)
+	if err != nil {
+		return err
+	}
 
-	req.URL.RawQuery = queryValue.Encode()
+	req.URL.RawQuery = value.Encode()
 
 	var res *http.Response
 	if res, err = http.DefaultClient.Do(req); err != nil {
@@ -326,15 +319,11 @@ func getSlice(data string, startSymbol, endSymbol byte) (res []byte, err error) 
 }
 
 // scanLine scan a line
-// clearRest is used to drop the rest of the reading line,
-// when it's unnecessary to read more line, it could be false
-func scanLine(reader *bufio.Reader, clearRest bool) (string, error) {
+func scanLine(reader *bufio.Reader) (string, error) {
 	data, isPrefix, err := reader.ReadLine() // data is not a copy, use it carefully
 	res := string(data)                      // copy the data to string
-	if clearRest {
-		for isPrefix {
-			_, isPrefix, err = reader.ReadLine()
-		}
+	for isPrefix {
+		_, isPrefix, err = reader.ReadLine()
 	}
 
 	return res, err
