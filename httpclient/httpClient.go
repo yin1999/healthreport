@@ -325,15 +325,15 @@ func getSlice(data string, startSymbol, endSymbol byte) (res []byte, err error) 
 	return res, err
 }
 
-// scanLine scan a line which may contains trailing '\r'.
+// scanLine scan a line
 // clearRest is used to drop the rest of the reading line,
 // when it's unnecessary to read more line, it could be false
 func scanLine(reader *bufio.Reader, clearRest bool) (string, error) {
-	data, err := reader.ReadSlice('\n') // data is not a copy, use it carefully
-	res := string(data)                 // copy the data to string
+	data, isPrefix, err := reader.ReadLine() // data is not a copy, use it carefully
+	res := string(data)                      // copy the data to string
 	if clearRest {
-		for err == bufio.ErrBufferFull {
-			_, err = reader.ReadSlice('\n')
+		for isPrefix {
+			_, isPrefix, err = reader.ReadLine()
 		}
 	}
 
