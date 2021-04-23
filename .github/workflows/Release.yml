@@ -29,7 +29,7 @@ jobs:
     - name: Set GoVersion
       if: env.GoVersion == ''
       run: |
-        echo "GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g')" >> ${GITHUB_ENV}
+        echo "GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')" >> ${GITHUB_ENV}
 
     - name: Set ENV for 'Create Tag'
       if: startsWith(github.ref, 'refs/tags/')

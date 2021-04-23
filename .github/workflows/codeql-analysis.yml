@@ -7,7 +7,6 @@ on:
     - '.**'
     - 'email-template.json'
     - 'LICENSE'
-    - 'Makefile'
     - 'README.md'
   pull_request:
     # The branches below must be a subset of the branches above

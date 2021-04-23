@@ -6,7 +6,6 @@ on:
     - '.**'
     - 'email-template.json'
     - 'LICENSE'
-    - 'Makefile'
     - 'README.md'
   pull_request:
     branches: [ master ]
@@ -14,7 +13,6 @@ on:
     - '.**'
     - 'email-template.json'
     - 'LICENSE'
-    - 'Makefile'
     - 'README.md'
 
 jobs:
@@ -22,16 +20,17 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - id: vars
+    - name: Set GoVersion
       run: |
-        echo ::set-output name=go_version::$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oE '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | head -1 | cut -d':' -f2 | sed 's/ //g; s/"//g')
+        echo "GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')" >> ${GITHUB_ENV}
+    
     - name: Check out code
       uses: actions/checkout@v2
     
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ steps.vars.outputs.go_version }}
+        go-version: ${{ env.GoVersion }}
       
     - name: Dep
       run: make dep
