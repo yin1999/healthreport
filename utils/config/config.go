@@ -1,14 +1,20 @@
-package utils
+package config
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+)
+
+var (
+	ErrNumberOutOfRange = errors.New("number: out of range")
+	ErrTimeWrongFormat  = errors.New("time: wrong format")
 )
 
 // Attempts 尝试次数
@@ -30,8 +36,8 @@ type Printer interface {
 	Printf(format string, v ...interface{})
 }
 
-// JSONWriter write config to file
-func JSONWriter(t interface{}, path string) error {
+// Store write config to file
+func (cfg *Config) Store(path string) error {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, 0744)
 	if err != nil {
@@ -39,24 +45,24 @@ func JSONWriter(t interface{}, path string) error {
 	}
 
 	var data []byte
-	data, err = json.MarshalIndent(t, "", "\t")
+	data, err = json.MarshalIndent(cfg, "", "\t")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0600)
 }
 
-// JSONReader read config from file
-func JSONReader(t interface{}, path string) error {
+// Load read config from file
+func (cfg *Config) Load(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, t)
+	return json.Unmarshal(data, cfg)
 }
 
 // Time get punch time
-func (t Config) Time() (hour, minute int) {
+func (t *Config) Time() (hour, minute int) {
 	return t.PunchTime.hour, t.PunchTime.minute
 }
 
@@ -73,7 +79,7 @@ func (t *Config) Check() error {
 }
 
 // Show return configuration
-func (t Config) Show(logger Printer) {
+func (t *Config) Show(logger Printer) {
 	logger.Printf("Maximum number of attempts: %d\n", t.MaxNumberOfAttempts)
 	logger.Printf("Time set: %02d:%02d\n", t.PunchTime.hour, t.PunchTime.minute)
 }

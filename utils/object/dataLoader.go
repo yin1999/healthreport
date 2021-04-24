@@ -1,4 +1,4 @@
-package utils
+package object
 
 import (
 	"bytes"
@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-// DataStore Persist data to file
-func DataStore(data interface{}, filename string) error { // 二进制存储，并做简单混淆
+// Store Persist data to file
+func Store(data interface{}, filename string) error { // 二进制存储，并做简单混淆
 	buffer := new(bytes.Buffer)
 	encoder := gob.NewEncoder(buffer)
 	err := encoder.Encode(data)
@@ -19,8 +19,8 @@ func DataStore(data interface{}, filename string) error { // 二进制存储，�
 	return os.WriteFile(filename, raw, 0400) // Read only(owner)
 }
 
-// DataLoad read data from file
-func DataLoad(data interface{}, filename string) error { // 信息读取
+// Load read object from file
+func Load(object interface{}, filename string) error { // 信息读取
 	raw, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func DataLoad(data interface{}, filename string) error { // 信息读取
 	byteGarble(raw)
 	buffer := bytes.NewBuffer(raw)
 	dec := gob.NewDecoder(buffer)
-	return dec.Decode(data)
+	return dec.Decode(object)
 }
 
 // byteGrable grable in place

@@ -1,26 +1,26 @@
-package utils
+package email
 
 import (
 	"testing"
 )
 
 var (
-	config *EmailConfig
+	config *Config
 )
 
 func TestWrapper(t *testing.T) {
-	testLoadEmailConfig(t)
+	testLoadConfig(t)
 	testLoginTest(t)
 	testSendMail(t)
 }
 
-func testLoadEmailConfig(t *testing.T) {
+func testLoadConfig(t *testing.T) {
 	var err error
-	config, err = LoadEmailConfig("not/exist.json")
+	config, err = LoadConfig("not/exist.json")
 	if config != nil || err == nil {
 		t.Fail()
 	}
-	config, err = LoadEmailConfig("../email.json")
+	config, err = LoadConfig("../email.json")
 	if config == nil || err != nil {
 		t.Fatal(err)
 	}

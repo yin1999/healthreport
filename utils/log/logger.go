@@ -1,6 +1,7 @@
-package utils
+package log
 
 import (
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -9,6 +10,13 @@ import (
 	"time"
 )
 
+const (
+	// DefaultLayout using to name log file
+	DefaultLayout = "2006-01.log"
+)
+
+var ErrInvalidSymbol = errors.New("log: layout contains invalid symbol")
+
 // Logger struct for log
 type Logger struct {
 	*log.Logger
@@ -16,8 +24,8 @@ type Logger struct {
 	done chan struct{}
 }
 
-// NewLogger create a new logger
-func NewLogger(dir, layout string) (*Logger, error) {
+// New create a new logger
+func New(dir, layout string) (*Logger, error) {
 	// check
 	if strings.ContainsRune(layout, '\\') || strings.ContainsRune(layout, '/') || strings.ContainsRune(layout, ':') {
 		return nil, ErrInvalidSymbol

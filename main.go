@@ -13,7 +13,10 @@ import (
 	"time"
 
 	client "github.com/yin1999/healthreport/httpclient"
-	"github.com/yin1999/healthreport/utils"
+	"github.com/yin1999/healthreport/utils/config"
+	"github.com/yin1999/healthreport/utils/email"
+	"github.com/yin1999/healthreport/utils/log"
+	"github.com/yin1999/healthreport/utils/object"
 	"golang.org/x/term"
 )
 
@@ -32,12 +35,11 @@ const (
 	mailNickName   = "打卡状态推送"
 	mailConfigPath = "email.json"
 
-	logFilenameLayout = "2006-01.log" // using time layout
-	logPath           = "log"         // 日志存储目录
+	logPath = "log" // 日志存储目录
 
-	retryDelay = 5 // minute
+	retryDelay = 5 * time.Minute
 
-	punchTimeout = 30 // second
+	punchTimeout = 30 * time.Second
 
 	punchStart    = "Start punch\n"
 	punchFinish   = "Punch finished\n"
@@ -45,9 +47,9 @@ const (
 )
 
 var (
-	cfg      = &utils.Config{} // config
-	emailCfg *utils.EmailConfig
-	logger   *utils.Logger                   // multiLogger
+	cfg      = &config.Config{} // config
+	emailCfg *email.Config
+	logger   *log.Logger                     // multiLogger
 	cstZone  = time.FixedZone("CST", 8*3600) // China Standard Time Zone
 )
 
@@ -57,7 +59,7 @@ func main() {
 		account [2]string // 账户信息
 	)
 
-	logger, err = utils.NewLogger(logPath, logFilenameLayout)
+	logger, err = log.New(logPath, log.DefaultLayout)
 
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
@@ -69,23 +71,23 @@ func main() {
 
 	logger.Print("Start program\n")
 
-	if err = utils.JSONReader(cfg, configPath); err == nil {
+	if err = cfg.Load(configPath); err == nil {
 		logger.Printf("Got config from file: '%s'\n", configPath)
 	} else {
 		cfg.GetFromStdin()
-		if err = utils.JSONWriter(*cfg, configPath); err != nil {
+		if err = cfg.Store(configPath); err != nil {
 			logger.Printf("Cannot save config, err: %s\n", err.Error())
 		}
 	}
 
 	cfg.Show(logger)
 
-	emailCfg, err = utils.LoadEmailConfig(mailConfigPath)
+	emailCfg, err = email.LoadConfig(mailConfigPath)
 	if err == nil {
 		logger.Print("Email deliver enabled\n")
 	}
 
-	if err = utils.DataLoad(&account, accountFilename); err == nil {
+	if err = object.Load(&account, accountFilename); err == nil {
 		logger.Printf("Got account info from file '%s'\n", accountFilename)
 	} else {
 		if account, err = getAccount(); err != nil {
@@ -95,7 +97,7 @@ func main() {
 
 		logger.Print("Got account info from 'Stdin'\n")
 
-		if err = utils.DataStore(account, accountFilename); err != nil {
+		if err = object.Store(account, accountFilename); err != nil {
 			logger.Printf("Cannot save account info, err: %s\n", err.Error())
 		}
 	}
@@ -107,7 +109,7 @@ func main() {
 	go signalListener(ctx, cancel)
 
 	logger.Print("正在验证账号密码\n")
-	err = client.LoginConfirm(ctx, account, punchTimeout*time.Second)
+	err = client.LoginConfirm(ctx, account, punchTimeout)
 	switch err {
 	case nil:
 		break
@@ -150,7 +152,7 @@ func init() {
 		}
 
 		if checkEmail {
-			cfg, err := utils.LoadEmailConfig(mailConfigPath)
+			cfg, err := email.LoadConfig(mailConfigPath)
 			if err == nil {
 				err = cfg.SMTP.LoginTest()
 			}
@@ -165,8 +167,6 @@ func init() {
 
 		os.Exit(returnCode)
 	}
-
-	client.SetTimeZone(cstZone)
 }
 
 func getAccount() (account [2]string, err error) {
@@ -233,10 +233,10 @@ func pause(hour, minute int) <-chan time.Time { // 暂停到第二天的指定�
 // punchRoutine please call this function with go routine
 func punchRoutine(ctx context.Context, account [2]string) {
 	logger.Print("Start punch routine\n")
-	var punchCount utils.Attempts = 1
+	var punchCount config.Attempts = 1
 	var err error
 	logger.Print(punchStart)
-	err = client.Punch(ctx, account, punchTimeout*time.Second)
+	err = client.Punch(ctx, account, punchTimeout)
 
 	switch err {
 	case nil:
@@ -247,13 +247,13 @@ func punchRoutine(ctx context.Context, account [2]string) {
 		return
 	}
 
-	ticker := time.NewTicker(retryDelay * time.Minute)
+	ticker := time.NewTicker(retryDelay)
 	for punchCount < cfg.MaxNumberOfAttempts {
-		logger.Printf("Tried %d times. Retry after %d minutes\n", punchCount, retryDelay)
+		logger.Printf("Tried %d times. Retry after %v\n", punchCount, retryDelay)
 		select {
-		case <-ticker.C: // try again after $retryDelay minutes.
-			logger.Print("Start punch\n")
-			err = client.Punch(ctx, account, punchTimeout*time.Second)
+		case <-ticker.C: // try again after $retryDelay.
+			logger.Print(punchStart)
+			err = client.Punch(ctx, account, punchTimeout)
 			switch err {
 			case nil:
 				logger.Print(punchFinish)

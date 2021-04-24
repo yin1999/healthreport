@@ -28,7 +28,9 @@ var (
 	prefixArray = [...]string{"    var _selfFormWid", "            fillDetail"}
 	symbolArray = [...]htmlSymbol{symbolString, symbolJSON}
 
-	timeZone = time.Local // 打卡时区设置，默认为local
+	// timeZone is used for set DataTime in HealthForm,
+	// default: CTS(China Standard Time)
+	timeZone = time.FixedZone("CST", 8*3600)
 )
 
 // LoginConfirm 验证账号密码
@@ -71,7 +73,6 @@ func Punch(ctx context.Context, account [2]string, timeout time.Duration) error 
 }
 
 // SetTimeZone 设置时区
-// 默认时区为 time.Local
 func SetTimeZone(tz *time.Location) {
 	if tz != nil {
 		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&timeZone)), unsafe.Pointer(tz))

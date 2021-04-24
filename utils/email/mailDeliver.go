@@ -1,12 +1,20 @@
-package utils
+package email
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/smtp"
+	"os"
 	"strings"
+)
+
+var (
+	ErrNotSupportAuth = errors.New("smtp: server doesn't support AUTH")
+	ErrNoReciver      = errors.New("mail: no reciver")
+	ErrNilConfig      = errors.New("mail: nil config")
 )
 
 type emailAccount struct {
@@ -17,8 +25,8 @@ type emailAccount struct {
 	Password string `json:"password"`
 }
 
-// EmailConfig smtp config
-type EmailConfig struct {
+// Config smtp config
+type Config struct {
 	To   []string     `json:"to"`
 	SMTP emailAccount `json:"SMTP"`
 }
@@ -47,7 +55,7 @@ func (config *emailAccount) LoginTest() error {
 }
 
 // SendMail send mail on STARTTLS/TLS port
-func (config *EmailConfig) SendMail(nickName, subject, body string) error {
+func (config *Config) SendMail(nickName, subject, body string) error {
 	if len(config.To) == 0 {
 		return ErrNoReciver
 	}
@@ -78,14 +86,17 @@ func (config *EmailConfig) SendMail(nickName, subject, body string) error {
 		[]byte(message))
 }
 
-// LoadEmailConfig if Email config exists, return email config
-func LoadEmailConfig(path string) (*EmailConfig, error) {
-	cfg := &EmailConfig{}
-	var err error
-	if err = JSONReader(cfg, path); err == nil {
-		return cfg, err
+// LoadConfig if Email config exists, return email config
+func LoadConfig(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
-	return nil, err
+	cfg := &Config{}
+	if err = json.Unmarshal(data, cfg); err != nil {
+		return nil, err
+	}
+	return cfg, err
 }
 
 func newClient(host string, port int, TLS bool) (client *smtp.Client, err error) {
