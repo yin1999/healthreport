@@ -2,23 +2,10 @@ package httpclient
 
 import "fmt"
 
-// index for resData
-const (
-	indexWID uint8 = iota
-	indexHealthFormData
-)
-
 type header struct {
 	key   string
 	value string
 }
-
-type htmlSymbol byte
-
-const (
-	symbolJSON htmlSymbol = iota
-	symbolString
-)
 
 // QueryParam query param struct
 type QueryParam struct {
@@ -68,9 +55,9 @@ type ElementNotFoundErr struct {
 }
 
 func (t CookieNotFoundErr) Error() string {
-	return fmt.Sprintf("Can't find cookie: %s", t.cookie)
+	return fmt.Sprintf("http: can't find cookie: %s", t.cookie)
 }
 
 func (t ElementNotFoundErr) Error() string {
-	return fmt.Sprintf("Can't found element: %s", t.element)
+	return fmt.Sprintf("http: can't found element: %s", t.element)
 }

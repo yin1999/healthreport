@@ -1,33 +1,13 @@
 package httpclient
 
 import (
-	"bufio"
-	"compress/gzip"
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
-	"sync/atomic"
 	"time"
-	"unsafe"
-
-	"github.com/google/go-querystring/query"
 )
 
 var (
-	generalHeaders = [...]header{
-		{"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"},
-		{"Accept-Encoding", "gzip"},
-		{"Accept-Language", "zh-CN,zh;q=0.9"},
-		{"Connection", "keep-alive"},
-		{"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"},
-	}
-
-	prefixArray = [...]string{"    var _selfFormWid", "            fillDetail"}
-	symbolArray = [...]htmlSymbol{symbolString, symbolJSON}
-
 	// timeZone is used for set DataTime in HealthForm,
 	// default: CTS(China Standard Time)
 	timeZone = time.FixedZone("CST", 8*3600)
@@ -48,9 +28,15 @@ func Punch(ctx context.Context, account [2]string, timeout time.Duration) error 
 	ctx, cc = context.WithTimeout(ctx, timeout)
 	defer cc()
 
-	cookies, err := login(ctx, account) // 登录，获取cookie
+	var err error
+	defer func() {
+		parseURLError(err)
+	}()
+
+	var cookies []*http.Cookie
+	cookies, err = login(ctx, account) // 登录，获取cookie
 	if err != nil {
-		return parseURLError(err)
+		return err
 	}
 
 	cookies, err = getFormSessionID(ctx, cookies) // 获取打卡系统的cookie
@@ -75,142 +61,8 @@ func Punch(ctx context.Context, account [2]string, timeout time.Duration) error 
 // SetTimeZone 设置时区
 func SetTimeZone(tz *time.Location) {
 	if tz != nil {
-		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&timeZone)), unsafe.Pointer(tz))
+		timeZone = tz
 	}
-}
-
-// getFormDetail 获取打卡表单详细信息
-func getFormDetail(ctx context.Context, cookies []*http.Cookie) (*HealthForm, *QueryParam, error) {
-	req, err := http.NewRequestWithContext(ctx,
-		http.MethodGet,
-		"http://form.hhu.edu.cn/pdc/formDesignApi/S/gUTwwojq",
-		http.NoBody)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	setGeneralHeader(req)
-	setCookies(req, cookies)
-
-	var res *http.Response
-
-	if res, err = http.DefaultClient.Do(req); err != nil {
-		return nil, nil, err
-	}
-	defer res.Body.Close()
-
-	var reader *gzip.Reader
-
-	if reader, err = gzip.NewReader(res.Body); err != nil { // gzip数据解压
-		return nil, nil, err
-	}
-	defer reader.Close()
-
-	bufferReader := bufio.NewReader(reader)
-
-	var line string
-
-	for err == nil && line != "<script type=\"text/javascript\">" {
-		line, err = scanLine(bufferReader)
-	}
-
-	var (
-		resData [2][]byte // wid, healthFormData
-		index   = 0
-	)
-
-	for err == nil && index != 2 {
-		line, err = scanLine(bufferReader)
-		if strings.HasPrefix(line, prefixArray[index]) {
-			if resData[index], err = parseData(line, symbolArray[index]); err != nil {
-				return nil, nil, err
-			}
-			index++
-		}
-	}
-
-	if index != 2 {
-		return nil, nil, ErrCannotParseData
-	}
-
-	form := &HealthForm{}
-
-	if err = json.Unmarshal(resData[indexHealthFormData], form); err != nil {
-		return nil, nil, err
-	}
-
-	form.DataTime = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
-
-	params := &QueryParam{
-		Wid:    string(resData[indexWID]),
-		UserID: form.StudentID,
-	}
-
-	return form, params, nil
-}
-
-// getFormSessionID 获取打卡系统的SessionID
-func getFormSessionID(ctx context.Context, cookies []*http.Cookie) ([]*http.Cookie, error) {
-	req, err := http.NewRequestWithContext(ctx,
-		http.MethodGet,
-		"http://form.hhu.edu.cn/pdc/form/list",
-		http.NoBody)
-
-	if err != nil {
-		return nil, err
-	}
-
-	setGeneralHeader(req)
-	setCookies(req, cookies)
-
-	var res *http.Response
-	if res, err = http.DefaultClient.Do(req); err != nil {
-		return nil, err
-	}
-	res.Body.Close()
-
-	if cookie := getCookie(res.Cookies(), "JSESSIONID"); cookie != nil {
-		return []*http.Cookie{cookie}, nil
-	}
-
-	return nil, CookieNotFoundErr{"JSESSIONID"}
-}
-
-// login 登录系统
-func login(ctx context.Context, account [2]string) ([]*http.Cookie, error) {
-	data := url.Values{}
-	data.Set("IDToken1", account[0])
-	data.Set("IDToken2", account[1])
-
-	req, err := http.NewRequestWithContext(ctx,
-		http.MethodPost,
-		"http://ids.hhu.edu.cn/amserver/UI/Login",
-		strings.NewReader(data.Encode()))
-
-	if err != nil {
-		return nil, err
-	}
-
-	setGeneralHeader(req)
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{
-		CheckRedirect: getResponseN(1),
-	}
-
-	var res *http.Response
-	if res, err = client.Do(req); err != nil {
-		return nil, err
-	}
-	res.Body.Close()
-
-	if cookie := getCookie(res.Cookies(), "iPlanetDirectoryPro"); cookie != nil {
-		return []*http.Cookie{cookie}, nil
-	}
-
-	return nil, CookieNotFoundErr{"iPlanetDirectoryPro"}
 }
 
 // parseURLError 解析URL错误
@@ -222,122 +74,4 @@ func parseURLError(err error) error {
 		return v.Err
 	}
 	return err
-}
-
-// postForm 提交打卡表单
-func postForm(ctx context.Context, form *HealthForm, params *QueryParam, cookies []*http.Cookie) error {
-	value, err := query.Values(form)
-	if err != nil {
-		return err
-	}
-
-	buf := value.Encode()
-	var req *http.Request
-	req, err = http.NewRequestWithContext(ctx,
-		http.MethodPost,
-		"http://form.hhu.edu.cn/pdc/formDesignApi/dataFormSave",
-		strings.NewReader(buf))
-
-	if err != nil {
-		return err
-	}
-
-	setGeneralHeader(req)
-	setCookies(req, cookies)
-
-	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-
-	value, err = query.Values(params)
-	if err != nil {
-		return err
-	}
-
-	req.URL.RawQuery = value.Encode()
-
-	var res *http.Response
-	if res, err = http.DefaultClient.Do(req); err != nil {
-		return err
-	}
-	res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("post failed, status code: %d", res.StatusCode)
-	}
-
-	return nil
-}
-
-// getCookie get Cookie by name
-func getCookie(cookies []*http.Cookie, name string) *http.Cookie {
-	for i := range cookies {
-		if cookies[i].Name == name {
-			return cookies[i]
-		}
-	}
-	return nil
-}
-
-func getResponseN(n int) func(req *http.Request, via []*http.Request) error {
-	return func(req *http.Request, via []*http.Request) error {
-		if len(via) == n {
-			return http.ErrUseLastResponse
-		}
-		return nil
-	}
-}
-
-func parseData(data string, symbol htmlSymbol) (res []byte, err error) {
-	switch symbol {
-	case symbolJSON:
-		res, err = getSlice(data, '{', '}')
-	case symbolString:
-		res, err = getSlice(data, '\'', '\'')
-		res = res[1 : len(res)-1]
-	default:
-		err = ErrInvalidSymbol
-	}
-
-	return
-}
-
-func getSlice(data string, startSymbol, endSymbol byte) (res []byte, err error) {
-	start := strings.IndexByte(data, startSymbol)
-	if start == -1 {
-		return nil, ErrCannotParseData
-	}
-
-	length := strings.IndexByte(data[start+1:], endSymbol)
-	if length == -1 {
-		return nil, ErrCannotParseData
-	}
-
-	res = make([]byte, length+2)
-	copy(res, data[start:])
-
-	return res, err
-}
-
-// scanLine scan a line
-func scanLine(reader *bufio.Reader) (string, error) {
-	data, isPrefix, err := reader.ReadLine() // data is not a copy, use it carefully
-	res := string(data)                      // copy the data to string
-	for isPrefix {
-		_, isPrefix, err = reader.ReadLine()
-	}
-
-	return res, err
-}
-
-func setCookies(req *http.Request, cookies []*http.Cookie) {
-	for i := range cookies {
-		req.AddCookie(cookies[i])
-	}
-}
-
-func setGeneralHeader(req *http.Request) {
-	for i := range generalHeaders {
-		req.Header.Set(generalHeaders[i].key, generalHeaders[i].value)
-	}
 }
