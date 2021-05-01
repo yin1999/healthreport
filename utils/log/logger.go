@@ -15,6 +15,7 @@ const (
 	DefaultLayout = "2006-01.log"
 )
 
+// ErrInvalidSymbol shows that the layout contains invalid symbol
 var ErrInvalidSymbol = errors.New("log: layout contains invalid symbol")
 
 // Logger struct for log

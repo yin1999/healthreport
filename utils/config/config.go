@@ -13,8 +13,10 @@ import (
 )
 
 var (
-	ErrNumberOutOfRange = errors.New("number: out of range")
-	ErrTimeWrongFormat  = errors.New("time: wrong format")
+	// ErrOutOfRange number out of range
+	ErrOutOfRange = errors.New("number: out of range")
+	// ErrWrongFormat time format is not correct
+	ErrWrongFormat = errors.New("time: wrong format")
 )
 
 // Attempts 尝试次数
@@ -62,30 +64,33 @@ func (cfg *Config) Load(path string) error {
 }
 
 // Time get punch time
-func (t *Config) Time() (hour, minute int) {
-	return t.PunchTime.hour, t.PunchTime.minute
+func (cfg *Config) Time() (hour, minute int) {
+	return cfg.PunchTime.hour, cfg.PunchTime.minute
 }
 
 // Check check config
-func (t *Config) Check() error {
-	if t.MaxNumberOfAttempts <= 0 || t.MaxNumberOfAttempts > 120 {
-		return ErrNumberOutOfRange
+func (cfg *Config) Check() error {
+	if cfg.MaxNumberOfAttempts <= 0 || cfg.MaxNumberOfAttempts > 120 {
+		return ErrOutOfRange
 	}
-	if t.PunchTime.hour < 0 || t.PunchTime.hour >= 24 || t.PunchTime.minute < 0 || t.PunchTime.minute >= 60 {
-		return ErrTimeWrongFormat
+	if cfg.PunchTime.hour < 0 ||
+		cfg.PunchTime.hour >= 24 ||
+		cfg.PunchTime.minute < 0 ||
+		cfg.PunchTime.minute >= 60 {
+		return ErrWrongFormat
 	}
 
 	return nil
 }
 
 // Show return configuration
-func (t *Config) Show(logger Printer) {
-	logger.Printf("Maximum number of attempts: %d\n", t.MaxNumberOfAttempts)
-	logger.Printf("Time set: %02d:%02d\n", t.PunchTime.hour, t.PunchTime.minute)
+func (cfg *Config) Show(logger Printer) {
+	logger.Printf("Maximum number of attempts: %d\n", cfg.MaxNumberOfAttempts)
+	logger.Printf("Time set: %02d:%02d\n", cfg.PunchTime.hour, cfg.PunchTime.minute)
 }
 
 // GetFromStdin 从Stdin获取配置信息
-func (t *Config) GetFromStdin() {
+func (cfg *Config) GetFromStdin() {
 	var (
 		inputString string
 		err         error
@@ -100,12 +105,12 @@ func (t *Config) GetFromStdin() {
 		}
 
 		if n == 0 {
-			t.MaxNumberOfAttempts = 36
+			cfg.MaxNumberOfAttempts = 36
 			break
 		} else {
 			n, _ := strconv.Atoi(inputString)
 			if n > 0 && n <= 120 {
-				t.MaxNumberOfAttempts = Attempts(n)
+				cfg.MaxNumberOfAttempts = Attempts(n)
 				break
 			}
 		}
@@ -120,18 +125,18 @@ func (t *Config) GetFromStdin() {
 
 		if n == 0 {
 			timeNow := time.Now()
-			t.PunchTime.hour = timeNow.Hour()
-			t.PunchTime.minute = timeNow.Minute()
+			cfg.PunchTime.hour = timeNow.Hour()
+			cfg.PunchTime.minute = timeNow.Minute()
 		} else {
 			st := selfTime{}
 			if err = st.UnmarshalText([]byte(inputString)); err != nil {
 				continue
 			} else {
-				t.PunchTime = st
+				cfg.PunchTime = st
 			}
 		}
 
-		if err = t.Check(); err == nil {
+		if err = cfg.Check(); err == nil {
 			break
 		}
 	}
@@ -151,7 +156,7 @@ func (t *Attempts) UnmarshalJSON(text []byte) (err error) {
 		return
 	}
 	if n < 1 || n > 120 {
-		return ErrNumberOutOfRange
+		return ErrOutOfRange
 	}
 	*t = Attempts(n)
 	return
@@ -168,20 +173,20 @@ func (t *selfTime) UnmarshalText(text []byte) error {
 	index := bytes.IndexByte(text, ':')
 
 	if index <= 0 {
-		return ErrTimeWrongFormat
+		return ErrWrongFormat
 	}
 
 	s := string(text)
 	hour, err := strconv.Atoi(s[:index])
 	if err != nil || hour < 0 || hour >= 24 {
-		return ErrTimeWrongFormat
+		return ErrWrongFormat
 	}
 
 	var minute int
 
 	minute, err = strconv.Atoi(s[index+1:])
 	if err != nil || minute < 0 || minute >= 60 {
-		return ErrTimeWrongFormat
+		return ErrWrongFormat
 	}
 
 	t.hour = hour

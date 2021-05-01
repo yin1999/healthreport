@@ -12,9 +12,10 @@ import (
 )
 
 var (
+	// ErrNotSupportAuth auth failed error
 	ErrNotSupportAuth = errors.New("smtp: server doesn't support AUTH")
-	ErrNoReciver      = errors.New("mail: no reciver")
-	ErrNilConfig      = errors.New("mail: nil config")
+	// ErrNoReceiver reciver is empty error
+	ErrNoReceiver = errors.New("mail: no receiver")
 )
 
 type emailAccount struct {
@@ -57,7 +58,7 @@ func (config *emailAccount) LoginTest() error {
 // SendMail send mail on STARTTLS/TLS port
 func (config *Config) SendMail(nickName, subject, body string) error {
 	if len(config.To) == 0 {
-		return ErrNoReciver
+		return ErrNoReceiver
 	}
 	header := make(map[string]string)
 	header["From"] = nickName + "<" + config.SMTP.Username + ">"

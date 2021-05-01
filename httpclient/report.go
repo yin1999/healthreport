@@ -30,10 +30,8 @@ const (
 var (
 	prefixArray = [...]string{"var _selfFormWid", "fillDetail"}
 	symbolArray = [...]htmlSymbol{symbolString, symbolJSON}
-
-	// Error
+	//ErrCannotParseData cannot parse html data error
 	ErrCannotParseData = errors.New("data: parse error")
-	ErrInvalidSymbol   = errors.New("data: invalid symbol")
 )
 
 // getFormSessionID 获取打卡系统的SessionID
@@ -164,7 +162,7 @@ func parseData(data string, symbol htmlSymbol) (res []byte, err error) {
 		res, err = getSlice(data, '\'', '\'')
 		res = res[1 : len(res)-1]
 	default:
-		err = ErrInvalidSymbol
+		err = errors.New("data: invalid symbol")
 	}
 	return
 }
