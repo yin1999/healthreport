@@ -22,15 +22,15 @@ var (
 // Attempts 尝试次数
 type Attempts uint8
 
-type selfTime struct {
-	hour   int
-	minute int
+type SelfTime struct {
+	Hour   int
+	Minute int
 }
 
 // Config config struct
 type Config struct {
-	MaxNumberOfAttempts Attempts `json:"maxNumberOfAttempts"`
-	PunchTime           selfTime `json:"punchTime"`
+	MaxAttempts Attempts `json:"maxAttempts"`
+	PunchTime   SelfTime `json:"punchTime"`
 }
 
 // Printer interface
@@ -60,33 +60,30 @@ func (cfg *Config) Load(path string) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(data, cfg)
-}
-
-// Time get punch time
-func (cfg *Config) Time() (hour, minute int) {
-	return cfg.PunchTime.hour, cfg.PunchTime.minute
+	if err = json.Unmarshal(data, cfg); err != nil {
+		return err
+	}
+	return cfg.Check()
 }
 
 // Check check config
 func (cfg *Config) Check() error {
-	if cfg.MaxNumberOfAttempts <= 0 || cfg.MaxNumberOfAttempts > 120 {
+	if cfg.MaxAttempts <= 0 || cfg.MaxAttempts > 120 {
 		return ErrOutOfRange
 	}
-	if cfg.PunchTime.hour < 0 ||
-		cfg.PunchTime.hour >= 24 ||
-		cfg.PunchTime.minute < 0 ||
-		cfg.PunchTime.minute >= 60 {
+	if cfg.PunchTime.Hour < 0 ||
+		cfg.PunchTime.Hour >= 24 ||
+		cfg.PunchTime.Minute < 0 ||
+		cfg.PunchTime.Minute >= 60 {
 		return ErrWrongFormat
 	}
-
 	return nil
 }
 
 // Show return configuration
 func (cfg *Config) Show(logger Printer) {
-	logger.Printf("Maximum number of attempts: %d\n", cfg.MaxNumberOfAttempts)
-	logger.Printf("Time set: %02d:%02d\n", cfg.PunchTime.hour, cfg.PunchTime.minute)
+	logger.Printf("Maximum number of attempts: %d\n", cfg.MaxAttempts)
+	logger.Printf("Time set: %02d:%02d\n", cfg.PunchTime.Hour, cfg.PunchTime.Minute)
 }
 
 // GetFromStdin 从Stdin获取配置信息
@@ -97,24 +94,20 @@ func (cfg *Config) GetFromStdin() {
 		n           int
 	)
 
-	fmt.Print("请输入每天最大尝试打卡的次数，默认为\"36\"\n")
-	for {
+	fmt.Print("请输入每天最大尝试打卡的次数，默认为\"16\"\n")
+	for n <= 0 || n > 120 {
 		fmt.Print("请输入(1~120):")
 		if n, err = fmt.Scanln(&inputString); err == io.EOF {
 			return
 		}
 
 		if n == 0 {
-			cfg.MaxNumberOfAttempts = 36
-			break
+			n = 16
 		} else {
-			n, _ := strconv.Atoi(inputString)
-			if n > 0 && n <= 120 {
-				cfg.MaxNumberOfAttempts = Attempts(n)
-				break
-			}
+			n, _ = strconv.Atoi(inputString)
 		}
 	}
+	cfg.MaxAttempts = Attempts(n)
 
 	fmt.Print("请输入每天定时运行的时间，默认为当前时间\n")
 	for {
@@ -125,18 +118,11 @@ func (cfg *Config) GetFromStdin() {
 
 		if n == 0 {
 			timeNow := time.Now()
-			cfg.PunchTime.hour = timeNow.Hour()
-			cfg.PunchTime.minute = timeNow.Minute()
-		} else {
-			st := selfTime{}
-			if err = st.UnmarshalText([]byte(inputString)); err != nil {
-				continue
-			} else {
-				cfg.PunchTime = st
-			}
+			cfg.PunchTime.Hour = timeNow.Hour()
+			cfg.PunchTime.Minute = timeNow.Minute()
+			break
 		}
-
-		if err = cfg.Check(); err == nil {
+		if err = cfg.PunchTime.UnmarshalText([]byte(inputString)); err == nil {
 			break
 		}
 	}
@@ -163,15 +149,14 @@ func (t *Attempts) UnmarshalJSON(text []byte) (err error) {
 }
 
 // MarshalText interface of json.Marshal
-func (t selfTime) MarshalText() (data []byte, err error) {
-	data = []byte(fmt.Sprintf("%02d:%02d", t.hour, t.minute))
+func (t SelfTime) MarshalText() (data []byte, err error) {
+	data = []byte(fmt.Sprintf("%02d:%02d", t.Hour, t.Minute))
 	return
 }
 
 // UnmarshalText interface of json.Unmarshal
-func (t *selfTime) UnmarshalText(text []byte) error {
+func (t *SelfTime) UnmarshalText(text []byte) error {
 	index := bytes.IndexByte(text, ':')
-
 	if index <= 0 {
 		return ErrWrongFormat
 	}
@@ -189,8 +174,7 @@ func (t *selfTime) UnmarshalText(text []byte) error {
 		return ErrWrongFormat
 	}
 
-	t.hour = hour
-	t.minute = minute
-
+	t.Hour = hour
+	t.Minute = minute
 	return err
 }

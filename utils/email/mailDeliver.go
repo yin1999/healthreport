@@ -33,7 +33,8 @@ type Config struct {
 }
 
 // LoginTest return nil, expect cannot login to the server
-func (config *emailAccount) LoginTest() error {
+func (cfg *Config) LoginTest() error {
+	config := cfg.SMTP
 	a := smtp.PlainAuth("",
 		config.Username,
 		config.Password,
@@ -55,14 +56,14 @@ func (config *emailAccount) LoginTest() error {
 	return err
 }
 
-// SendMail send mail on STARTTLS/TLS port
-func (config *Config) SendMail(nickName, subject, body string) error {
-	if len(config.To) == 0 {
+// Send send mail on STARTTLS/TLS port
+func (cfg *Config) Send(nickName, subject, body string) error {
+	if len(cfg.To) == 0 {
 		return ErrNoReceiver
 	}
 	header := make(map[string]string)
-	header["From"] = nickName + "<" + config.SMTP.Username + ">"
-	header["To"] = strings.Join(config.To, ";")
+	header["From"] = nickName + "<" + cfg.SMTP.Username + ">"
+	header["To"] = strings.Join(cfg.To, ";")
 	header["Subject"] = subject
 	header["Content-Type"] = "text/html; charset=UTF-8"
 	message := ""
@@ -72,18 +73,18 @@ func (config *Config) SendMail(nickName, subject, body string) error {
 	message += "\r\n" + body
 	auth := smtp.PlainAuth(
 		"",
-		config.SMTP.Username,
-		config.SMTP.Password,
-		config.SMTP.Host,
+		cfg.SMTP.Username,
+		cfg.SMTP.Password,
+		cfg.SMTP.Host,
 	)
-	client, err := newClient(config.SMTP.Host, config.SMTP.Port, config.SMTP.TLS)
+	client, err := newClient(cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.TLS)
 	if err != nil {
 		return err
 	}
 	return sendMail(client,
 		auth,
-		config.SMTP.Username,
-		config.To,
+		cfg.SMTP.Username,
+		cfg.To,
 		[]byte(message))
 }
 

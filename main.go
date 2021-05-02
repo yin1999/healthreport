@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"os/signal"
 	"runtime"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	client "github.com/yin1999/healthreport/httpclient"
+	"github.com/yin1999/healthreport/serve"
 	"github.com/yin1999/healthreport/utils/config"
 	"github.com/yin1999/healthreport/utils/email"
 	"github.com/yin1999/healthreport/utils/log"
@@ -28,49 +28,28 @@ var (
 )
 
 const (
-	accountFilename = "account" // 账户信息存储文件名
+	mailNickName    = "打卡状态推送"
+	mailConfigPath  = "email.json"
+	logPath         = "log"         // 日志存储目录
+	configPath      = "config.json" // 配置文件
+	accountFilename = "account"     // 账户信息存储文件名
 
-	configPath = "config.json" // 配置文件
-
-	mailNickName   = "打卡状态推送"
-	mailConfigPath = "email.json"
-
-	logPath = "log" // 日志存储目录
-
-	retryDelay = 5 * time.Minute
-
+	retryAfter   = 5 * time.Minute
 	punchTimeout = 30 * time.Second
-
-	punchStart    = "Start punch\n"
-	punchFinish   = "Punch finished\n"
-	contextCancel = "Context canceled\n"
-)
-
-var (
-	cfg      = &config.Config{} // config
-	emailCfg *email.Config
-	logger   *log.Logger                     // multiLogger
-	cstZone  = time.FixedZone("CST", 8*3600) // China Standard Time Zone
 )
 
 func main() {
-	var (
-		err     error
-		account [2]string // 账户信息
-	)
-
-	logger, err = log.New(logPath, log.DefaultLayout)
-
+	logger, err := log.New(logPath, log.DefaultLayout)
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
 		os.Exit(1)
 	}
-
 	defer logger.Close()
-	defer logger.Print("Exit\n")
 
+	defer logger.Print("Exit\n")
 	logger.Print("Start program\n")
 
+	cfg := &config.Config{} // config
 	if err = cfg.Load(configPath); err == nil {
 		logger.Printf("Got config from file: '%s'\n", configPath)
 	} else {
@@ -79,14 +58,15 @@ func main() {
 			logger.Printf("Cannot save config, err: %s\n", err.Error())
 		}
 	}
-
 	cfg.Show(logger)
 
+	var emailCfg *email.Config
 	emailCfg, err = email.LoadConfig(mailConfigPath)
 	if err == nil {
 		logger.Print("Email deliver enabled\n")
 	}
 
+	var account [2]string // 账户信息
 	if err = object.Load(&account, accountFilename); err == nil {
 		logger.Printf("Got account info from file '%s'\n", accountFilename)
 	} else {
@@ -110,26 +90,35 @@ func main() {
 
 	logger.Print("正在验证账号密码\n")
 	err = client.LoginConfirm(ctx, account, punchTimeout)
-	switch err {
-	case nil:
-		break
-	case context.Canceled:
-		logger.Print(contextCancel)
-		return
-	default:
-		logger.Printf("验证密码失败，请检查网络连接、账号密码(Err: %s)\n", err.Error())
+	if err != nil {
+		logger.Printf("验证密码失败(Err: %s)\n", err.Error())
 		return
 	}
 	logger.Print("账号密码验证成功，将在5秒后开始打卡\n")
 
+	serveCfg := &serve.Config{
+		Sender:      emailCfg,
+		Logger:      logger,
+		MaxAttempts: uint8(cfg.MaxAttempts),
+		Time: serve.Time{
+			Hour:     cfg.PunchTime.Hour,
+			Minute:   cfg.PunchTime.Minute,
+			TimeZone: time.FixedZone("CST", 8*3600), // China Standard Time Zone,
+		},
+		MailNickName: mailNickName,
+		Timeout:      punchTimeout,
+		RetryAfter:   retryAfter,
+		PunchFunc:    client.Punch,
+	}
+
 	select {
 	case <-time.After(5 * time.Second):
-		punchRoutine(ctx, account) // 当天打卡
+		serveCfg.PunchRoutine(ctx, account) // 当天打卡
 	case <-ctx.Done():
 		break
 	}
 
-	punchServe(ctx, account)
+	serveCfg.PunchServe(ctx, account)
 }
 
 func init() {
@@ -154,7 +143,7 @@ func init() {
 		if checkEmail {
 			cfg, err := email.LoadConfig(mailConfigPath)
 			if err == nil {
-				err = cfg.SMTP.LoginTest()
+				err = cfg.LoginTest()
 			}
 
 			if err != nil {
@@ -186,99 +175,6 @@ func getAccount() (account [2]string, err error) {
 	return
 }
 
-func punchServe(ctx context.Context, account [2]string) {
-	if ctx.Err() != nil {
-		return
-	}
-
-	logger.Print("Pausing...\n")
-	select {
-	case <-pause(cfg.Time()):
-		break
-	case <-ctx.Done():
-		return
-	}
-
-	ticker := time.NewTicker(24 * time.Hour)
-
-	logger.Print("Punch on a 24-hour cycle\n")
-
-	go punchRoutine(ctx, account)
-
-	rand.Seed(time.Now().Unix())
-
-	for {
-		select {
-		case <-ticker.C:
-			select {
-			case <-time.After(time.Duration(rand.Intn(int(time.Minute) * 10))):
-				break
-			case <-ctx.Done():
-				return
-			}
-
-			go punchRoutine(ctx, account)
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func pause(hour, minute int) <-chan time.Time { // 暂停到第二天的指定时刻
-	year, month, day := time.Now().In(cstZone).Date()
-	t := time.Date(year, month, day+1, hour, minute, 0, 0, cstZone)
-	return time.After(time.Until(t))
-}
-
-// punchRoutine please call this function with go routine
-func punchRoutine(ctx context.Context, account [2]string) {
-	logger.Print("Start punch routine\n")
-	var punchCount config.Attempts = 1
-	var err error
-	logger.Print(punchStart)
-	err = client.Punch(ctx, account, punchTimeout)
-
-	switch err {
-	case nil:
-		logger.Print(punchFinish)
-		return
-	case context.Canceled:
-		logger.Print(contextCancel)
-		return
-	}
-
-	ticker := time.NewTicker(retryDelay)
-	for punchCount < cfg.MaxNumberOfAttempts {
-		logger.Printf("Tried %d times. Retry after %v\n", punchCount, retryDelay)
-		select {
-		case <-ticker.C: // try again after $retryDelay.
-			logger.Print(punchStart)
-			err = client.Punch(ctx, account, punchTimeout)
-			switch err {
-			case nil:
-				logger.Print(punchFinish)
-				return
-			case context.Canceled:
-				logger.Print(contextCancel)
-				return
-			}
-
-		case <-ctx.Done():
-			return
-		}
-		punchCount++
-	}
-	if emailCfg != nil {
-		e := emailCfg.SendMail(mailNickName,
-			fmt.Sprintf("打卡状态推送-%s", time.Now().In(cstZone).Format("2006-01-02")),
-			fmt.Sprintf("账户：%s 打卡失败<br>error: %s", account[0], err.Error()))
-		if e != nil {
-			logger.Printf("Send mail failed, err: %s\n", e.Error())
-		}
-	}
-	logger.Fatalf("Maximum number of attempts reached: %d times. The error of the last time is: %v\n", punchCount, err)
-}
-
 func signalListener(ctx context.Context, cancel context.CancelFunc) {
 	if ctx == nil || cancel == nil {
 		panic("ctx or cancel is nil")
@@ -288,8 +184,7 @@ func signalListener(ctx context.Context, cancel context.CancelFunc) {
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case s := <-c:
-		logger.Println("Got signal:", s)
+	case <-c:
 		cancel()
 	case <-ctx.Done():
 		return

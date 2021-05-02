@@ -11,7 +11,7 @@ var (
 func TestWrapper(t *testing.T) {
 	testLoadConfig(t)
 	testLoginTest(t)
-	testSendMail(t)
+	testSend(t)
 }
 
 func testLoadConfig(t *testing.T) {
@@ -28,14 +28,14 @@ func testLoadConfig(t *testing.T) {
 }
 
 func testLoginTest(t *testing.T) {
-	err := config.SMTP.LoginTest()
+	err := config.LoginTest()
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func testSendMail(t *testing.T) {
-	err := config.SendMail("测试邮件",
+func testSend(t *testing.T) {
+	err := config.Send("测试邮件",
 		"测试",
 		"这是一封测试邮件",
 	)

@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -36,9 +35,6 @@ func New(dir, layout string) (*Logger, error) {
 	if len(dir) != 0 && !os.IsPathSeparator(dir[len(dir)-1]) {
 		dir = string(append([]byte(dir), os.PathSeparator))
 	}
-	if filepath.Ext(layout) == "" {
-		layout += ".log"
-	}
 
 	w, f, err := newWriter(dir, layout)
 	if err != nil {
@@ -50,9 +46,7 @@ func New(dir, layout string) (*Logger, error) {
 		done:   make(chan struct{}, 1),
 	}
 
-	// log maintainer
-	go logger.logMaintainer(dir, layout)
-
+	go logger.serve(dir, layout)
 	return logger, nil
 }
 
@@ -73,11 +67,11 @@ func newWriter(dir, layout string) (w io.Writer, file *os.File, err error) {
 	if err != nil {
 		return
 	}
-	w = io.MultiWriter(os.Stdout, file)
+	w = io.MultiWriter(os.Stderr, file)
 	return
 }
 
-func (l *Logger) logMaintainer(dir, layout string) {
+func (l *Logger) serve(dir, layout string) {
 	var (
 		year  int
 		month time.Month

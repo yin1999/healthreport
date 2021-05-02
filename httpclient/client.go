@@ -9,7 +9,7 @@ import (
 
 var (
 	// timeZone is used for set DataTime in HealthForm,
-	// default: CTS(China Standard Time)
+	// default: CST(China Standard Time)
 	timeZone = time.FixedZone("CST", 8*3600)
 )
 
