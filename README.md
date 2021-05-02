@@ -4,7 +4,7 @@
 
 项目使用http请求模拟整个打卡过程，速度很快！  
 一键打卡，用到就是爽到  
-云函数版本请访问[健康打卡_河海大学版_FC](https://gitee.com/allo123/healthreport_fc)
+云函数版本请访问[健康打卡_河海大学版_FC](https://gitee.com/allo123/healthreport_fc)(无服务器版，配置方便，**零成本**)
 
 ## 状态
 
@@ -12,7 +12,7 @@
 
     1. 每日自动打卡
     2. 一次打卡失败，自动重新尝试，可设置最大打卡尝试次数以及重新打卡的等待时间
-    3. 日志同步输出到Stdout以及log文件
+    3. 日志同步输出到Stderr以及log文件
     4. 版本查询
     5. 打卡失败邮件通知推送功能(目前支持STARTTLS/TLS端口+PlainAuth登录到SMTP服务器)
 
