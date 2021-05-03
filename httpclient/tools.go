@@ -121,7 +121,6 @@ func randBytes(data []byte) {
 
 // scanLine scan a line
 func scanLine(reader *bufio.Reader) (string, error) {
-
 	data, isPrefix, err := reader.ReadLine() // data is not a copy, use it carefully
 	res := string(trimSuffixSpace(data))     // copy the data to string(remove the leading space)
 	for isPrefix {
@@ -166,8 +165,8 @@ func responseReader(res *http.Response) (io.ReadCloser, error) {
 			res.Body.Close()
 		}
 	}()
-	r := &resReader{}
-	encoding := res.Header.Get("content-encoding")
+	var r io.ReadCloser
+	encoding := res.Header.Get("Content-Encoding")
 	switch encoding {
 	case "gzip":
 		var reader *gzip.Reader
@@ -175,11 +174,12 @@ func responseReader(res *http.Response) (io.ReadCloser, error) {
 		if err != nil {
 			return nil, err
 		}
-		r.Reader = reader
-		r.close = []closeFunc{reader.Close, res.Body.Close}
+		r = &resReader{
+			Reader: reader,
+			close:  []closeFunc{reader.Close, res.Body.Close},
+		}
 	case "":
-		r.Reader = res.Body
-		r.close = []closeFunc{res.Body.Close}
+		r = res.Body
 	default:
 		return nil, fmt.Errorf("reader: unsupported encoding: %s", encoding)
 	}
