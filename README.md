@@ -8,7 +8,7 @@
 
 ## 状态
 
-目前，[最新版本](https://github.com/yin1999/healthreport/releases/latest)具有以下特性
+目前，[最新版本](https://github.com/yin1999/healthreport/releases/latest)具有以下特性:
 
     1. 每日自动打卡
     2. 一次打卡失败，自动重新尝试，可设置最大打卡尝试次数以及重新打卡的等待时间
@@ -21,90 +21,116 @@
 适用类Unix/windows，想直接使用的，请下载[release](https://gitee.com/allo123/healthreport/releases)版本后直接转到[使用说明](#使用说明) 
 
 源码安装依赖[Golang](https://golang.google.cn/)-基于golang开发、[git](https://git-scm.com/)-版本管理工具以及[make](https://www.gnu.org/software/make/)-快速构建，国内使用推荐开启golang的Go module并使用国内的Go proxy服务  
-推荐使用[Goproxy 中国](https://goproxy.cn/)或[阿里云 Goproxy](https://developer.aliyun.com/mirror/goproxy)。
+推荐使用[Goproxy.cn](https://goproxy.cn/)或[阿里云 Goproxy](https://developer.aliyun.com/mirror/goproxy)
 
 ### 安装步骤
 
-1. 环境配置，以CentOS 7为例
+1. 环境配置，以`Centos`/`Debian`为例
 
-    安装软件：Golang[>= 1.16]、screen、git、make
+	- 安装Golang[>= 1.16]: [golang.google.cn/doc/install](https://golang.google.cn/doc/install)
 
-       yum install -y golang screen git make
+	- 安装 git、make:
+
+	   ```bash
+	   # Centos
+	   sudo yum install git make
+
+	   # Debian/Ubuntu
+	   sudo apt install git make
+	   ```
 
 2. 通过源码下载、编译
 
-       go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/,direct  #配置Goproxy
+	```bash
+	# 配置Goproxy
+	go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/,direct  
 
-       #下载编译
-       git clone https://github.com/yin1999/healthreport.git
-       cd healthreport
-       make
-
-3. 运行
-
-       screen ./healthreport
-       # 输入必要信息跳出验证账号密码成功后
-       # 键盘CTRL+A+D离开screen进程，后台会每天自动运行
+	# 下载编译
+	git clone --depth 1 https://github.com/yin1999/healthreport.git
+	cd healthreport
+	make # 若没有安装make，可以使用命令: go run _script/make.go 代替
+	```
 
 ## 使用说明
 
 ### linux
 
-1. 安装screen
+1. 安装 screen
 
-       sudo yum install screen  #CentOS
-       sudo apt-get install screen  #Ubuntu
+	```bash
+	sudo yum install screen  # CentOS
+	sudo apt install screen  # Debian/Ubuntu
+	```
 
-2. 运行
+2. 授予可执行权限(`源码编译`的可以跳过此步)
 
-       chmod +x healthreport
-       screen ./healthreport
+	```bash
+	chmod +x healthreport
+	```
 
-**请使用ctrl+a+d退出screen进程，ctrl+c是用来终止程序的**
+3. 运行
+
+	通过screen进行shell管理，可通过[菜鸟教程](https://www.runoob.com/linux/linux-comm-screen.html)学习相关命令
+
+	```bash
+	screen ./healthreport
+	```
+
+**请使用ctrl+a+d离开screen窗口，ctrl+c是用来终止程序的**
 
 ### Windows
 
 命令行中执行
 
-    .\healthreport
+```cmd
+.\healthreport
+```
 
 ### 邮件通知
 
 1. 复制**email-template.json**命名为**email.json**
 
-       cp email-template.json email.json  #Linux命令
+	```bash
+	cp email-template.json email.json  # Linux命令
+	```
 
-2. 修改**email.json**的权限为仅使用者可读、可修改(0600权限)，保证数据安全，Windows用户请通过文件属性删除**Users**的读取权限
+2. 修改**email.json**中的的配置，具体说明如下:
 
-       chmod 600 email.json  #Linux命令
+	```properties
+	to:    收件邮箱(string list)  
+	SMTP:  SMTP 配置
+	    username:   SMTP用户名(string)
+	    password:   SMTP用户密码(string)
+	    TLS:        是否为TLS端口(bool)
+	    host:       SMTP服务地址(string)
+	    port:       SMTP服务端口(需支持STARTTLS/TLS)(int)
+	```
 
-3. 修改**email.json**中的的配置，具体说明如下:
-
-       to:    收件邮箱(string list)  
-       SMTP:  SMTP 配置  
-         username:   SMTP用户名(string)  
-         password:   SMTP用户密码(string)  
-         TLS:        是否为TLS端口(bool)  
-         host:       SMTP服务地址(string)  
-         port:       SMTP服务端口(需支持STARTTLS/TLS)(int)
-
-4. 重启打卡服务，若提示**Email deliver enabled**，则邮件通知服务已启用
+3. 重启打卡服务，若提示**Email deliver enabled**，则邮件通知服务已启用
 
 ### 其它说明
 
 1. 查看版本信息
 
-       ./healthreport -v
+	```bash
+	./healthreport -v
+	```
 
 2. 帮助信息
 
-       ./healthreport -h
+	```bash
+	./healthreport -h
+	```
 
 3. 验证SMTP服务
 
-       ./healthreport -c
+	```bash
+	./healthreport -c
+	```
 
 4. 版本更新
 
-       git pull
-       make clean && make
+	```bash
+	git pull
+	make
+	```
