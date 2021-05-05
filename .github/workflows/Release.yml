@@ -53,14 +53,10 @@ jobs:
         make build VERSION=${{ env.VERSION }} TARGET=windows
 
     - name: Create Release
-      id: create_release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          healthreport
-          healthreport.exe
-        tag_name: ${{ env.VERSION }}
-        name: "健康打卡${{ env.VERSION }}"
-        body: ${{ env.MESSAGE }}
+      run: |
+        gh release create ${{ env.VERSION }} -n "${{ env.MESSAGE }}" -t "${{ env.name }}" ${{ env.files }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # attribute
+        name: 健康打卡${{ env.VERSION }}
+        files: healthreport healthreport.exe
