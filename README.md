@@ -4,7 +4,7 @@
 
 项目使用http请求模拟整个打卡过程，速度很快！  
 一键打卡，用到就是爽到  
-云函数版本请访问[健康打卡_河海大学版_FC](https://gitee.com/allo123/healthreport_fc)(无服务器版，配置方便，**零成本**)
+云函数版本请访问[健康打卡_河海大学版_FC](https://github.com/yin1999/healthreport_fc)(无服务器版，配置方便，**零成本**)
 
 ## 状态
 
