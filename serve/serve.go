@@ -8,21 +8,25 @@ import (
 	"time"
 )
 
+// Sender send a message when punch failed
 type Sender interface {
 	Send(nickName, subject, body string) error
 }
 
+// Logger interface for log
 type Logger interface {
 	Printf(format string, v ...interface{})
 	Print(v ...interface{})
 }
 
+// Time time info for punch
 type Time struct {
 	Hour     int
 	Minute   int
 	TimeZone *time.Location
 }
 
+// Config punch information configuration
 type Config struct {
 	Sender       Sender
 	Logger       Logger
@@ -40,51 +44,46 @@ var (
 	contextCancel = "Context canceled\n"
 )
 
+// PunchServe universal punch service
 func (cfg Config) PunchServe(ctx context.Context, account [2]string) {
 	if ctx.Err() != nil {
 		return
 	}
 
-	cfg.Logger.Print("Pausing...\n")
-	select {
-	case <-pause(cfg.Time.Hour, cfg.Time.Minute, cfg.Time.TimeZone):
-		break
-	case <-ctx.Done():
-		return
+	cfg.Logger.Print("Punch on a 24-hour cycle\n")
+	var nextTime time.Time
+
+	{
+		year, month, day := time.Now().In(cfg.Time.TimeZone).Date()
+		nextTime = time.Date(year, month, day+1, // next day
+			cfg.Time.Hour,
+			cfg.Time.Minute-5, // rand in [-5, +5) minutes
+			0, 0, cfg.Time.TimeZone,
+		)
 	}
 
-	ticker := time.NewTicker(24 * time.Hour)
-
-	cfg.Logger.Print("Punch on a 24-hour cycle\n")
-
-	go cfg.PunchRoutine(ctx, account)
-
 	r := rand.New(rand.NewSource(time.Now().Unix()))
+	var timer *time.Timer
 
 	for {
+		timer = time.NewTimer(time.Until(nextTime) + time.Duration(r.Intn(int(time.Minute*10))))
 		select {
-		case <-ticker.C:
-			select {
-			case <-time.After(time.Duration(r.Intn(int(time.Minute) * 10))):
-				go cfg.PunchRoutine(ctx, account)
-			case <-ctx.Done():
-				return
-			}
+		case <-timer.C:
+			go cfg.PunchRoutine(ctx, account)
 		case <-ctx.Done():
-			ticker.Stop()
+			timer.Stop()
 			return
 		}
+		nextTime = nextTime.Add(24 * time.Hour)
 	}
 }
 
 // PunchRoutine please call this function with go routine
 func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 	cfg.Logger.Print("Start punch routine\n")
-	var punchCount uint8 = 1
-	var err error
 	cfg.Logger.Print(punchStart)
-	err = cfg.PunchFunc(ctx, account, cfg.Timeout)
 
+	err := cfg.PunchFunc(ctx, account, cfg.Timeout)
 	switch err {
 	case nil:
 		cfg.Logger.Print(punchFinish)
@@ -94,7 +93,9 @@ func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 		return
 	}
 
+	punchCount := uint8(1)
 	ticker := time.NewTicker(cfg.RetryAfter)
+
 	for punchCount < cfg.MaxAttempts {
 		cfg.Logger.Printf("Tried %d times. Retry after %v\n", punchCount, cfg.RetryAfter)
 		select {
@@ -127,10 +128,4 @@ func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 	}
 	cfg.Logger.Printf("Maximum attempts: %d reached. Last error: %s\n", punchCount, err.Error())
 	os.Exit(1)
-}
-
-func pause(hour, minute int, tz *time.Location) <-chan time.Time { // 暂停到第二天的指定时刻
-	year, month, day := time.Now().In(tz).Date()
-	t := time.Date(year, month, day+1, hour, minute, 0, 0, tz)
-	return time.After(time.Until(t))
 }
