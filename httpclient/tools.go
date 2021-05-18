@@ -159,29 +159,30 @@ func (r *resReader) Close() error {
 // responseReader provide the response reader,
 // if occur an error, it will close the response.Body
 func responseReader(res *http.Response) (io.ReadCloser, error) {
-	var err error
-	defer func() {
-		if err != nil {
-			res.Body.Close()
-		}
-	}()
-	var r io.ReadCloser
-	encoding := res.Header.Get("Content-Encoding")
+	var (
+		err error
+		r   io.ReadCloser
+
+		encoding = res.Header.Get("Content-Encoding")
+	)
+
 	switch encoding {
 	case "gzip":
 		var reader *gzip.Reader
-		reader, err := gzip.NewReader(res.Body)
-		if err != nil {
-			return nil, err
-		}
-		r = &resReader{
-			Reader: reader,
-			close:  []closeFunc{reader.Close, res.Body.Close},
+		reader, err = gzip.NewReader(res.Body)
+		if err == nil {
+			r = &resReader{
+				Reader: reader,
+				close:  []closeFunc{reader.Close, res.Body.Close},
+			}
 		}
 	case "":
 		r = res.Body
 	default:
-		return nil, fmt.Errorf("reader: unsupported encoding: %s", encoding)
+		err = fmt.Errorf("reader: unsupported encoding: %s", encoding)
 	}
-	return r, nil
+	if err != nil {
+		res.Body.Close()
+	}
+	return r, err
 }

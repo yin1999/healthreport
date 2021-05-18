@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -26,14 +25,8 @@ type Logger struct {
 
 // New create a new logger
 func New(dir, layout string) (*Logger, error) {
-	// check
-	if strings.ContainsRune(layout, '\\') || strings.ContainsRune(layout, '/') || strings.ContainsRune(layout, ':') {
-		return nil, ErrInvalidSymbol
-	}
-
-	// init config
 	if len(dir) != 0 && !os.IsPathSeparator(dir[len(dir)-1]) {
-		dir = string(append([]byte(dir), os.PathSeparator))
+		dir = string(append([]byte(dir), os.PathSeparator)) // add pathSeparator to the end
 	}
 
 	w, f, err := newWriter(dir, layout)
@@ -72,24 +65,18 @@ func newWriter(dir, layout string) (w io.Writer, file *os.File, err error) {
 }
 
 func (l *Logger) serve(dir, layout string) {
-	var (
-		year  int
-		month time.Month
-		next  time.Time
+	var next time.Time
 
-		w    io.Writer
-		file *os.File
-		err  error
-	)
+	{
+		year, month, _ := time.Now().Date()
+		next = time.Date(year, month+1, 1, 0, 0, 0, 0, time.Local)
+	}
 
 	for {
-		year, month, _ = time.Now().Date()
-		month++
-		next = time.Date(year, month, 1, 0, 0, 0, 0, time.Local)
-
+		timer := time.NewTimer(time.Until(next))
 		select {
-		case <-time.After(time.Until(next)): // 暂停到下个月创建日志文件
-			w, file, err = newWriter(dir, layout)
+		case <-timer.C: // 暂停到下个月创建日志文件
+			w, file, err := newWriter(dir, layout)
 			if err != nil {
 				if l.Logger != nil {
 					l.Printf("Create new log file failed: %s\n", err.Error())
@@ -103,7 +90,9 @@ func (l *Logger) serve(dir, layout string) {
 			l.file.Close()
 			l.file = file
 		case <-l.done:
+			timer.Stop()
 			return
 		}
+		next = next.AddDate(0, 1, 0)
 	}
 }
