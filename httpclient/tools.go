@@ -17,7 +17,7 @@ import (
 )
 
 var generalHeaders = [...]header{
-	{"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9"},
+	{"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
 	{"Accept-Encoding", "gzip"},
 	{"Accept-Language", "zh-CN,zh;q=0.9"},
 	{"Connection", "keep-alive"},
@@ -51,11 +51,11 @@ func getWithContext(ctx context.Context, url string) (*http.Request, error) {
 	return req, err
 }
 
-var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+var isAsciiSpace = [256]bool{'\t': true, '\n': true, '\v': true, '\f': true, '\r': true, ' ': true}
 
 func trimSuffixSpace(data []byte) []byte {
 	start := 0
-	for start < len(data) && asciiSpace[data[start]] == 1 {
+	for start < len(data) && isAsciiSpace[data[start]] {
 		start++
 	}
 	return data[start:]
@@ -113,9 +113,9 @@ func encryptAES(data, key string) (string, error) {
 // randBytes generate random bytes
 func randBytes(data []byte) {
 	const fill = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
-	const l = len(fill)
+	const length = int32(len(fill))
 	for i := range data {
-		data[i] = fill[rand.Intn(l)]
+		data[i] = fill[rand.Int31()%length]
 	}
 }
 
@@ -123,10 +123,9 @@ func randBytes(data []byte) {
 func scanLine(reader *bufio.Reader) (string, error) {
 	data, isPrefix, err := reader.ReadLine() // data is not a copy, use it carefully
 	res := string(trimSuffixSpace(data))     // copy the data to string(remove the leading space)
-	for isPrefix {
+	for isPrefix {                           // discard the remaining runes in the line
 		_, isPrefix, err = reader.ReadLine()
 	}
-
 	return res, err
 }
 
