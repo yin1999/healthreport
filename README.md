@@ -18,7 +18,7 @@
 
 ## 安装教程
 
-适用类Unix/windows，想直接使用的，请下载[release](https://gitee.com/allo123/healthreport/releases)版本后直接转到[使用说明](#使用说明) 
+适用类Unix/windows，想直接使用的，请下载[release](https://github.com/yin1999/healthreport/releases/latest)版本后直接转到[使用说明](#使用说明) 
 
 源码安装依赖[Golang](https://golang.google.cn/)-基于golang开发、[git](https://git-scm.com/)-版本管理工具以及[make](https://www.gnu.org/software/make/)-快速构建，国内使用推荐开启golang的Go module并使用国内的Go proxy服务  
 推荐使用[Goproxy.cn](https://goproxy.cn/)或[阿里云 Goproxy](https://developer.aliyun.com/mirror/goproxy)
