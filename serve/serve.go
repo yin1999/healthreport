@@ -66,7 +66,7 @@ func (cfg Config) PunchServe(ctx context.Context, account [2]string) {
 	var timer *time.Timer
 
 	for {
-		timer = time.NewTimer(time.Until(nextTime) + time.Duration(r.Int63())%time.Minute*10)
+		timer = time.NewTimer(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
 		select {
 		case <-timer.C:
 			go cfg.PunchRoutine(ctx, account)

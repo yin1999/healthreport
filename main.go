@@ -41,7 +41,7 @@ const (
 func main() {
 	logger, err := log.New(logPath, log.DefaultLayout)
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 	defer logger.Close()
