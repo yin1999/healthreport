@@ -22,7 +22,8 @@ var (
 // Attempts 尝试次数
 type Attempts uint8
 
-type SelfTime struct {
+// Time time config for scheduler
+type Time struct {
 	Hour   int
 	Minute int
 }
@@ -30,7 +31,7 @@ type SelfTime struct {
 // Config config struct
 type Config struct {
 	MaxAttempts Attempts `json:"maxAttempts"`
-	PunchTime   SelfTime `json:"punchTime"`
+	PunchTime   Time     `json:"punchTime"`
 }
 
 // Printer interface
@@ -149,13 +150,13 @@ func (t *Attempts) UnmarshalJSON(text []byte) (err error) {
 }
 
 // MarshalText interface of json.Marshal
-func (t SelfTime) MarshalText() (data []byte, err error) {
+func (t Time) MarshalText() (data []byte, err error) {
 	data = []byte(fmt.Sprintf("%02d:%02d", t.Hour, t.Minute))
 	return
 }
 
 // UnmarshalText interface of json.Unmarshal
-func (t *SelfTime) UnmarshalText(text []byte) error {
+func (t *Time) UnmarshalText(text []byte) error {
 	index := bytes.IndexByte(text, ':')
 	if index <= 0 {
 		return ErrWrongFormat
