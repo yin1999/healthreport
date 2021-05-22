@@ -84,9 +84,8 @@ func main() {
 
 	fmt.Print("Ctrl+C可退出程序\n")
 
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go signalListener(ctx, cancel)
+	ctx, cc := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cc()
 
 	logger.Print("正在验证账号密码\n")
 	err = client.LoginConfirm(ctx, account, punchTimeout)
@@ -111,11 +110,15 @@ func main() {
 		PunchFunc:    client.Punch,
 	}
 
-	select {
-	case <-time.After(5 * time.Second):
-		serveCfg.PunchRoutine(ctx, account) // 当天打卡
-	case <-ctx.Done():
-		break
+	{
+		timer := time.NewTimer(5 * time.Second)
+		select {
+		case <-timer.C:
+			break
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		}
 	}
 
 	serveCfg.PunchServe(ctx, account)
@@ -173,20 +176,4 @@ func getAccount() (account [2]string, err error) {
 	}
 	account[1] = string(passwd)
 	return
-}
-
-func signalListener(ctx context.Context, cancel context.CancelFunc) {
-	if ctx == nil || cancel == nil {
-		panic("ctx or cancel is nil")
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-c:
-		cancel()
-	case <-ctx.Done():
-		return
-	}
 }

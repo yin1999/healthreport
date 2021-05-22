@@ -129,12 +129,6 @@ func (cfg *Config) GetFromStdin() {
 	}
 }
 
-// MarshalJSON interface of json.Marshal
-func (t Attempts) MarshalJSON() (data []byte, err error) {
-	data = []byte(strconv.Itoa(int(t)))
-	return
-}
-
 // UnmarshalJSON interface of json.Unmarshal
 func (t *Attempts) UnmarshalJSON(text []byte) (err error) {
 	var n int
