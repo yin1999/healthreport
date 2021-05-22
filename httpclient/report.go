@@ -132,8 +132,6 @@ func postForm(ctx context.Context, form *HealthForm, params *QueryParam, cookies
 	}
 
 	setCookies(req, cookies)
-	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 
 	value, err = query.Values(params)
 	if err != nil {
@@ -157,17 +155,16 @@ func postForm(ctx context.Context, form *HealthForm, params *QueryParam, cookies
 func parseData(data string, symbol htmlSymbol) (res []byte, err error) {
 	switch symbol {
 	case symbolJSON:
-		res, err = getSlice(data, '{', '}')
+		res, err = getSlice(data, '{', '}', true)
 	case symbolString:
-		res, err = getSlice(data, '\'', '\'')
-		res = res[1 : len(res)-1]
+		res, err = getSlice(data, '\'', '\'', false)
 	default:
 		err = errors.New("data: invalid symbol")
 	}
 	return
 }
 
-func getSlice(data string, startSymbol, endSymbol byte) (res []byte, err error) {
+func getSlice(data string, startSymbol, endSymbol byte, containSymbol bool) ([]byte, error) {
 	start := strings.IndexByte(data, startSymbol)
 	if start == -1 {
 		return nil, ErrCannotParseData
@@ -178,8 +175,14 @@ func getSlice(data string, startSymbol, endSymbol byte) (res []byte, err error) 
 		return nil, ErrCannotParseData
 	}
 
-	res = make([]byte, length+2)
-	copy(res, data[start:])
+	if containSymbol {
+		length += 2
+	} else {
+		start++
+	}
 
-	return res, err
+	res := make([]byte, length)
+	copy(res, data[start:]) // copy the sub string from data to res
+
+	return res, nil
 }
