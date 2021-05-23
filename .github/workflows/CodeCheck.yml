@@ -10,15 +10,6 @@ on:
     - 'Makefile'
     - 'README.md'
     - '_script/**'
-  pull_request:
-    branches: [ master ]
-    paths-ignore:
-    - '.**'
-    - 'email-template.json'
-    - 'LICENSE'
-    - 'Makefile'
-    - 'README.md'
-    - '_script/**'
 
 jobs:
   report:
