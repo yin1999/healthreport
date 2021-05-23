@@ -174,9 +174,8 @@ func getAccount(account *[2]string) (err error) {
 		passwd, err = term.ReadPassword(int(syscall.Stdin))
 		fmt.Print("\n") // print in new line
 	}
-	if err != nil {
-		return
+	if err == nil {
+		account[0], account[1] = data, string(passwd)
 	}
-	account[0], account[1] = data, string(passwd)
 	return
 }

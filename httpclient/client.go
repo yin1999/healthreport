@@ -65,11 +65,8 @@ func SetTimeZone(tz *time.Location) {
 
 // parseURLError 解析URL错误
 func parseURLError(err error) error {
-	if err == nil {
-		return err
-	}
 	if v, ok := err.(*url.Error); ok {
-		return v.Err
+		err = v.Err
 	}
 	return err
 }

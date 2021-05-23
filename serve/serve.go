@@ -78,10 +78,7 @@ func (cfg Config) PunchServe(ctx context.Context, account [2]string) {
 // PunchRoutine punch until successed or max attempts reached
 func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 	cfg.Logger.Print("Start punch routine\n")
-
 	var err error
-	ticker := time.NewTicker(cfg.RetryAfter)
-	defer ticker.Stop()
 
 	for punchCount := uint8(1); punchCount <= cfg.MaxAttempts; punchCount++ {
 		cfg.Logger.Print("Start punch\n")
@@ -99,9 +96,11 @@ func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 		}
 
 		// waiting
+		timer := time.NewTimer(cfg.RetryAfter)
 		select {
-		case <-ticker.C: // try again after cfg.RetryAfter.
+		case <-timer.C: // try again after cfg.RetryAfter.
 		case <-ctx.Done():
+			timer.Stop()
 			return
 		}
 	}
