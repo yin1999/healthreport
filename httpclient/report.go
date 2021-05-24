@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -20,7 +19,7 @@ const (
 	indexHealthFormData
 )
 
-type htmlSymbol byte
+type htmlSymbol uint8
 
 const (
 	symbolJSON htmlSymbol = iota
@@ -35,103 +34,96 @@ var (
 )
 
 // getFormSessionID 获取打卡系统的SessionID
-func getFormSessionID(ctx context.Context, cookies []*http.Cookie) ([]*http.Cookie, error) {
-	req, err := getWithContext(ctx, "http://form.hhu.edu.cn/pdc/form/list")
+func getFormSessionID(ctx context.Context, jar customCookieJar) error {
+	req, err := getWithContext(ctx, "http://dailyreport.hhu.edu.cn/pdc/form/list")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	setCookies(req, cookies)
+
+	client := &http.Client{Jar: jar}
 
 	var res *http.Response
-	if res, err = http.DefaultClient.Do(req); err != nil {
-		return nil, err
+	if res, err = client.Do(req); err != nil {
+		return err
 	}
 	res.Body.Close()
 
-	if cookies := getCookie(res.Cookies(), []string{"JSESSIONID"}); cookies != nil {
-		return cookies, nil
+	if jar.GetCookieByDomain("dailyreport.hhu.edu.cn") == nil {
+		err = CookieNotFoundErr{"JSESSIONID"}
 	}
-	return nil, CookieNotFoundErr{"JSESSIONID"}
+	return err
 }
 
 // getFormDetail 获取打卡表单详细信息
-func getFormDetail(ctx context.Context, cookies []*http.Cookie) (*HealthForm, *QueryParam, error) {
-	req, err := getWithContext(ctx, "http://form.hhu.edu.cn/pdc/formDesignApi/S/gUTwwojq")
+func getFormDetail(ctx context.Context, jar http.CookieJar) (form *HealthForm, params *QueryParam, err error) {
+	var req *http.Request
+	req, err = getWithContext(ctx, "http://dailyreport.hhu.edu.cn/pdc/formDesignApi/S/gUTwwojq")
 	if err != nil {
-		return nil, nil, err
+		return
 	}
-	setCookies(req, cookies)
 
+	client := &http.Client{Jar: jar}
 	var res *http.Response
-	if res, err = http.DefaultClient.Do(req); err != nil {
-		return nil, nil, err
+	if res, err = client.Do(req); err != nil {
+		return
 	}
 
 	var reader io.ReadCloser
 	if reader, err = responseReader(res); err != nil {
-		return nil, nil, err
-	}
-	defer reader.Close()
-
-	bufferReader := bufio.NewReader(reader)
-
-	var line string
-	for err == nil && line != "<script type=\"text/javascript\">" {
-		line, err = scanLine(bufferReader)
+		return
 	}
 
 	var (
-		resData [2][]byte // wid, healthFormData
-		index   = 0
+		bufferReader = bufio.NewReader(reader)
+		resData      [2][]byte // wid, healthFormData
+		index        = 0
+		line         string
 	)
 
 	for err == nil && index != 2 {
 		line, err = scanLine(bufferReader)
 		if strings.HasPrefix(line, prefixArray[index]) {
-			if resData[index], err = parseData(line, symbolArray[index]); err != nil {
-				return nil, nil, err
-			}
+			resData[index], err = parseData(line, symbolArray[index])
 			index++
 		}
 	}
+	reader.Close()
 
-	if index != 2 {
-		return nil, nil, ErrCannotParseData
+	if err != nil || index != 2 {
+		err = ErrCannotParseData
+		return
 	}
 
-	form := &HealthForm{}
+	form = &HealthForm{}
 
 	if err = json.Unmarshal(resData[indexHealthFormData], form); err != nil {
-		return nil, nil, err
+		return
 	}
 
 	form.DataTime = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
 
-	params := &QueryParam{
+	params = &QueryParam{
 		Wid:    string(resData[indexWID]),
 		UserID: form.StudentID,
 	}
-
-	return form, params, nil
+	return
 }
 
 // postForm 提交打卡表单
-func postForm(ctx context.Context, form *HealthForm, params *QueryParam, cookies []*http.Cookie) error {
+func postForm(ctx context.Context, form *HealthForm, params *QueryParam, jar http.CookieJar) error {
 	value, err := query.Values(form)
 	if err != nil {
 		return err
 	}
 
 	var req *http.Request
-	req, err = postWithContext(ctx,
-		"http://form.hhu.edu.cn/pdc/formDesignApi/dataFormSave",
+	req, err = postFormWithContext(ctx,
+		"http://dailyreport.hhu.edu.cn/pdc/formDesignApi/dataFormSave",
 		value,
 	)
 	if err != nil {
 		return err
 	}
-
-	setCookies(req, cookies)
 
 	value, err = query.Values(params)
 	if err != nil {
@@ -140,14 +132,18 @@ func postForm(ctx context.Context, form *HealthForm, params *QueryParam, cookies
 
 	req.URL.RawQuery = value.Encode()
 
+	client := &http.Client{
+		Jar: jar,
+	}
+
 	var res *http.Response
-	if res, err = http.DefaultClient.Do(req); err != nil {
+	if res, err = client.Do(req); err != nil {
 		return err
 	}
 	res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("post failed, status code: %d", res.StatusCode)
+		return errors.New("post failed, status: " + res.Status)
 	}
 	return nil
 }

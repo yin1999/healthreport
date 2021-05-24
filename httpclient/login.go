@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -27,17 +26,19 @@ type loginForm struct {
 }
 
 // login 登录系统
-func login(ctx context.Context, account [2]string) (cookies []*http.Cookie, err error) {
+func login(ctx context.Context, account [2]string) (jar customCookieJar, err error) {
 	const loginURL = "http://authserver.hhu.edu.cn/authserver/login"
 	var req *http.Request
 	req, err = getWithContext(ctx, loginURL)
 	if err != nil {
 		return
 	}
-	setGeneralHeader(req)
+
+	jar = newCookieJar()
+	client := &http.Client{Jar: jar}
 
 	var res *http.Response
-	if res, err = http.DefaultClient.Do(req); err != nil {
+	if res, err = client.Do(req); err != nil {
 		return
 	}
 	var reader io.ReadCloser
@@ -46,22 +47,36 @@ func login(ctx context.Context, account [2]string) (cookies []*http.Cookie, err 
 	}
 	defer reader.Close()
 	f := &loginForm{}
+
 	{
 		bufferReader := bufio.NewReader(res.Body)
 		var line string
-		for err == nil && !strings.HasPrefix(line, "<input type=\"hidden\"") {
+		const inputElement = "<input type=\"hidden\""
+		for !strings.HasPrefix(line, inputElement) {
 			line, err = scanLine(bufferReader)
+			if err != nil {
+				return
+			}
+		}
+
+		var filler *structFiller
+		if filler, err = newFiller(f, "fill"); err != nil {
+			return
 		}
 		var v *elementInput
-		filler := newFiller(f, "fill")
-		for ; strings.HasPrefix(line, "<input type=\"hidden\""); line, _ = scanLine(bufferReader) {
+		for {
 			v, err = elementParse(line)
 			if err != nil {
 				return
 			}
 			filler.fill(v.Key, v.Value)
+			line, _ = scanLine(bufferReader)
+			if !strings.HasPrefix(line, inputElement) {
+				break
+			}
 		}
 	}
+
 	f.Username = account[0]
 	f.Password, err = encryptAES(account[1], f.EncryptKey)
 	if err != nil {
@@ -73,20 +88,18 @@ func login(ctx context.Context, account [2]string) (cookies []*http.Cookie, err 
 		return
 	}
 
-	req, err = postWithContext(ctx, loginURL, value)
+	req, err = postFormWithContext(ctx, loginURL, value)
 	if err != nil {
 		return
 	}
-	setCookies(req, res.Cookies())
 
-	client := http.Client{CheckRedirect: getResponseN(1)}
-	res, err = client.Do(req)
-	if err != nil {
+	client.CheckRedirect = getResponseN(1)
+	if res, err = client.Do(req); err != nil {
 		return
 	}
 	res.Body.Close()
 
-	if cookies = getCookie(res.Cookies(), []string{"iPlanetDirectoryPro"}); cookies == nil {
+	if jar.GetCookieByName("iPlanetDirectoryPro") == nil {
 		err = CookieNotFoundErr{"iPlanetDirectoryPro"}
 	}
 	return
@@ -122,11 +135,12 @@ type structFiller struct {
 	v reflect.Value
 }
 
-// newFiller default tag: fill
-func newFiller(item interface{}, tag string) *structFiller {
+// newFiller default tag: fill.
+// The item must be a pointer
+func newFiller(item interface{}, tag string) (*structFiller, error) {
 	v := reflect.ValueOf(item).Elem()
 	if !v.CanAddr() {
-		panic("reflect: item must be a pointer")
+		return nil, errors.New("reflect: item must be a pointer")
 	}
 	if tag == "" {
 		tag = "fill"
@@ -135,7 +149,7 @@ func newFiller(item interface{}, tag string) *structFiller {
 		if tn, ok := t.Lookup(tag); ok {
 			return strings.Split(tn, ",")[0], nil
 		}
-		return "", errors.New("reflect: not define a" + tag + "tag")
+		return "", errors.New("reflect: not define a <" + tag + "> tag")
 	}
 	s := &structFiller{
 		m: make(map[string]int),
@@ -149,13 +163,13 @@ func newFiller(item interface{}, tag string) *structFiller {
 		}
 		s.m[name] = i
 	}
-	return s
+	return s, nil
 }
 
 func (s *structFiller) fill(key string, value interface{}) error {
 	fieldNum, ok := s.m[key]
 	if !ok {
-		return fmt.Errorf("reflect: field %s not exists", key)
+		return errors.New("reflect: field <" + key + "> not exists")
 	}
 	s.v.Field(fieldNum).Set(reflect.ValueOf(value))
 	return nil
