@@ -45,7 +45,7 @@ func Punch(ctx context.Context, account [2]string, timeout time.Duration) (err e
 	)
 	form, params, err = getFormDetail(ctx, jar) // 获取打卡列表信息
 	if err != nil {
-		return err
+		return
 	}
 
 	err = postForm(ctx, form, params, jar) // 提交表单

@@ -155,7 +155,7 @@ func responseReader(res *http.Response) (io.ReadCloser, error) {
 				close:  []closeFunc{reader.Close, res.Body.Close},
 			}
 		}
-	case "":
+	case "", "identity":
 		r = res.Body
 	default:
 		err = errors.New("reader: unsupported encoding: " + encoding)

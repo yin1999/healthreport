@@ -1,7 +1,5 @@
 package httpclient
 
-import "fmt"
-
 type header struct {
 	key   string
 	value string
@@ -49,15 +47,6 @@ type CookieNotFoundErr struct {
 	cookie string
 }
 
-// ElementNotFoundErr error interface for element
-type ElementNotFoundErr struct {
-	element string
-}
-
 func (t CookieNotFoundErr) Error() string {
-	return fmt.Sprintf("http: can't find cookie: %s", t.cookie)
-}
-
-func (t ElementNotFoundErr) Error() string {
-	return fmt.Sprintf("http: can't found element: %s", t.element)
+	return "http: can't find cookie: " + t.cookie
 }

@@ -146,10 +146,10 @@ func newFiller(item interface{}, tag string) (*structFiller, error) {
 		tag = "fill"
 	}
 	findTagName := func(t reflect.StructTag) (string, error) {
-		if tn, ok := t.Lookup(tag); ok {
+		if tn, ok := t.Lookup(tag); ok && len(tn) > 0 {
 			return strings.Split(tn, ",")[0], nil
 		}
-		return "", errors.New("reflect: not define a <" + tag + "> tag")
+		return "", errors.New("skip")
 	}
 	s := &structFiller{
 		m: make(map[string]int),
