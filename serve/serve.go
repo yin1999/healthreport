@@ -59,11 +59,10 @@ func (cfg Config) PunchServe(ctx context.Context, account [2]string) {
 	}
 
 	r := rand.New(rand.NewSource(time.Now().Unix()))
-	var timer *time.Timer
 
+	timer := time.NewTimer(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
 	for {
 		go cfg.PunchRoutine(ctx, account)
-		timer = time.NewTimer(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
 
 		select {
 		case <-timer.C:
@@ -72,6 +71,7 @@ func (cfg Config) PunchServe(ctx context.Context, account [2]string) {
 			return
 		}
 		nextTime = nextTime.Add(24 * time.Hour)
+		timer.Reset(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
 	}
 }
 
@@ -80,6 +80,7 @@ func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 	cfg.Logger.Print("Start punch routine\n")
 	var err error
 
+	var timer *time.Timer
 	for punchCount := uint8(1); punchCount <= cfg.MaxAttempts; punchCount++ {
 		cfg.Logger.Print("Start punch\n")
 		err = cfg.PunchFunc(ctx, account, cfg.Timeout)
@@ -96,7 +97,11 @@ func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 		}
 
 		// waiting
-		timer := time.NewTimer(cfg.RetryAfter)
+		if timer == nil {
+			timer = time.NewTimer(cfg.RetryAfter)
+		} else {
+			timer.Reset(cfg.RetryAfter)
+		}
 		select {
 		case <-timer.C: // try again after cfg.RetryAfter.
 		case <-ctx.Done():
