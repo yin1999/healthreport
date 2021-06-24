@@ -27,7 +27,7 @@ type loginForm struct {
 
 // login 登录系统
 func login(ctx context.Context, account [2]string) (jar customCookieJar, err error) {
-	const loginURL = "http://authserver.hhu.edu.cn/authserver/login"
+	const loginURL = "https://authserver.hhu.edu.cn/authserver/login"
 	var req *http.Request
 	req, err = getWithContext(ctx, loginURL)
 	if err != nil {
