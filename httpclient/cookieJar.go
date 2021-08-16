@@ -44,7 +44,7 @@ func (j *cookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 // GetCookieByDomain use domain as filter to get cookies
 func (j *cookieJar) GetCookieByDomain(domain string) (res []*http.Cookie) {
 	for i := range j.cookies {
-		if strings.HasSuffix(j.cookies[i].Domain, domain) {
+		if strings.HasSuffix(domain, j.cookies[i].Domain) {
 			res = append(res, j.cookies[i])
 		}
 	}

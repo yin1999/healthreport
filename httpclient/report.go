@@ -26,6 +26,8 @@ const (
 	symbolString
 )
 
+const reportDomain = "form.hhu.edu.cn"
+
 var (
 	prefixArray = [...]string{"var _selfFormWid", "fillDetail"}
 	symbolArray = [...]htmlSymbol{symbolString, symbolJSON}
@@ -35,7 +37,7 @@ var (
 
 // getFormSessionID 获取打卡系统的SessionID
 func getFormSessionID(ctx context.Context, jar customCookieJar) error {
-	req, err := getWithContext(ctx, "http://dailyreport.hhu.edu.cn/pdc/form/list")
+	req, err := getWithContext(ctx, "http://"+reportDomain+"/pdc/form/list")
 	if err != nil {
 		return err
 	}
@@ -48,7 +50,7 @@ func getFormSessionID(ctx context.Context, jar customCookieJar) error {
 	}
 	res.Body.Close()
 
-	if jar.GetCookieByDomain("dailyreport.hhu.edu.cn") == nil {
+	if jar.GetCookieByDomain(reportDomain) == nil {
 		err = CookieNotFoundErr{"JSESSIONID"}
 	}
 	return err
@@ -57,7 +59,7 @@ func getFormSessionID(ctx context.Context, jar customCookieJar) error {
 // getFormDetail 获取打卡表单详细信息
 func getFormDetail(ctx context.Context, jar http.CookieJar) (form *HealthForm, params *QueryParam, err error) {
 	var req *http.Request
-	req, err = getWithContext(ctx, "http://dailyreport.hhu.edu.cn/pdc/formDesignApi/S/gUTwwojq")
+	req, err = getWithContext(ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/gUTwwojq")
 	if err != nil {
 		return
 	}
@@ -118,7 +120,7 @@ func postForm(ctx context.Context, form *HealthForm, params *QueryParam, jar htt
 
 	var req *http.Request
 	req, err = postFormWithContext(ctx,
-		"http://dailyreport.hhu.edu.cn/pdc/formDesignApi/dataFormSave",
+		"http://"+reportDomain+"/pdc/formDesignApi/dataFormSave",
 		value,
 	)
 	if err != nil {
