@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -70,13 +69,8 @@ func getFormDetail(ctx context.Context, jar http.CookieJar) (form *HealthForm, p
 		return
 	}
 
-	var reader io.ReadCloser
-	if reader, err = responseReader(res); err != nil {
-		return
-	}
-
 	var (
-		bufferReader = bufio.NewReader(reader)
+		bufferReader = bufio.NewReader(res.Body)
 		resData      [2][]byte // wid, healthFormData
 		index        = 0
 		line         string
@@ -89,7 +83,7 @@ func getFormDetail(ctx context.Context, jar http.CookieJar) (form *HealthForm, p
 			index++
 		}
 	}
-	reader.Close()
+	res.Body.Close()
 
 	if err != nil || index != 2 {
 		err = ErrCannotParseData

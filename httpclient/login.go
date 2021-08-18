@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -41,11 +40,7 @@ func login(ctx context.Context, account [2]string) (jar customCookieJar, err err
 	if res, err = client.Do(req); err != nil {
 		return
 	}
-	var reader io.ReadCloser
-	if reader, err = responseReader(res); err != nil {
-		return
-	}
-	defer reader.Close()
+	defer res.Body.Close()
 	f := &loginForm{}
 
 	{
