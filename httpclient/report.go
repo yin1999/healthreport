@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -35,37 +34,34 @@ var (
 )
 
 // getFormSessionID 获取打卡系统的SessionID
-func getFormSessionID(ctx context.Context, jar customCookieJar) error {
-	req, err := getWithContext(ctx, "http://"+reportDomain+"/pdc/form/list")
+func (c *punchClient) getFormSessionID() error {
+	req, err := getWithContext(c.ctx, "http://"+reportDomain+"/pdc/form/list")
 	if err != nil {
 		return err
 	}
 
-	client := &http.Client{Jar: jar}
-
 	var res *http.Response
-	if res, err = client.Do(req); err != nil {
+	if res, err = c.httpClient.Do(req); err != nil {
 		return err
 	}
-	res.Body.Close()
+	drainBody(res.Body)
 
-	if jar.GetCookieByDomain(reportDomain) == nil {
+	if c.jar.GetCookieByDomain(reportDomain) == nil {
 		err = CookieNotFoundErr{"JSESSIONID"}
 	}
 	return err
 }
 
 // getFormDetail 获取打卡表单详细信息
-func getFormDetail(ctx context.Context, jar http.CookieJar) (form *HealthForm, params *QueryParam, err error) {
+func (c *punchClient) getFormDetail() (form *HealthForm, params *QueryParam, err error) {
 	var req *http.Request
-	req, err = getWithContext(ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/gUTwwojq")
+	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/gUTwwojq")
 	if err != nil {
 		return
 	}
 
-	client := &http.Client{Jar: jar}
 	var res *http.Response
-	if res, err = client.Do(req); err != nil {
+	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
 
@@ -83,7 +79,7 @@ func getFormDetail(ctx context.Context, jar http.CookieJar) (form *HealthForm, p
 			index++
 		}
 	}
-	res.Body.Close()
+	drainBody(res.Body)
 
 	if err != nil || index != 2 {
 		err = ErrCannotParseData
@@ -106,14 +102,14 @@ func getFormDetail(ctx context.Context, jar http.CookieJar) (form *HealthForm, p
 }
 
 // postForm 提交打卡表单
-func postForm(ctx context.Context, form *HealthForm, params *QueryParam, jar http.CookieJar) error {
+func (c *punchClient) postForm(form *HealthForm, params *QueryParam) error {
 	value, err := query.Values(form)
 	if err != nil {
 		return err
 	}
 
 	var req *http.Request
-	req, err = postFormWithContext(ctx,
+	req, err = postFormWithContext(c.ctx,
 		"http://"+reportDomain+"/pdc/formDesignApi/dataFormSave",
 		value,
 	)
@@ -128,15 +124,11 @@ func postForm(ctx context.Context, form *HealthForm, params *QueryParam, jar htt
 
 	req.URL.RawQuery = value.Encode()
 
-	client := &http.Client{
-		Jar: jar,
-	}
-
 	var res *http.Response
-	if res, err = client.Do(req); err != nil {
+	if res, err = c.httpClient.Do(req); err != nil {
 		return err
 	}
-	res.Body.Close()
+	drainBody(res.Body)
 
 	if res.StatusCode != http.StatusOK {
 		return errors.New("post failed, status: " + res.Status)

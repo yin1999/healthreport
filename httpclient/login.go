@@ -25,19 +25,20 @@ type loginForm struct {
 }
 
 // login 登录系统
-func login(ctx context.Context, account [2]string) (jar customCookieJar, err error) {
+func (c *punchClient) login(ctx context.Context, account [2]string) (err error) {
 	const loginURL = "https://authserver.hhu.edu.cn/authserver/login"
+	c.ctx = ctx
 	var req *http.Request
-	req, err = getWithContext(ctx, loginURL)
+	req, err = getWithContext(c.ctx, loginURL)
 	if err != nil {
 		return
 	}
 
-	jar = newCookieJar()
-	client := &http.Client{Jar: jar}
+	c.jar = newCookieJar()
+	c.httpClient = &http.Client{Jar: c.jar}
 
 	var res *http.Response
-	if res, err = client.Do(req); err != nil {
+	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
 	defer res.Body.Close()
@@ -71,6 +72,7 @@ func login(ctx context.Context, account [2]string) (jar customCookieJar, err err
 			}
 		}
 	}
+	drainBody(res.Body)
 
 	f.Username = account[0]
 	f.Password, err = encryptAES(account[1], f.EncryptKey)
@@ -83,18 +85,19 @@ func login(ctx context.Context, account [2]string) (jar customCookieJar, err err
 		return
 	}
 
-	req, err = postFormWithContext(ctx, loginURL, value)
+	req, err = postFormWithContext(c.ctx, loginURL, value)
 	if err != nil {
 		return
 	}
 
-	client.CheckRedirect = getResponseN(1)
-	if res, err = client.Do(req); err != nil {
+	c.httpClient.CheckRedirect = getResponseN(1)
+	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
-	res.Body.Close()
+	c.httpClient.CheckRedirect = nil
+	drainBody(res.Body)
 
-	if jar.GetCookieByName("iPlanetDirectoryPro") == nil {
+	if c.jar.GetCookieByName("iPlanetDirectoryPro") == nil {
 		err = CookieNotFoundErr{"iPlanetDirectoryPro"}
 	}
 	return

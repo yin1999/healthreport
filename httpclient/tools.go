@@ -7,6 +7,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -115,4 +116,9 @@ func setGeneralHeader(req *http.Request) {
 	for i := range generalHeaders {
 		req.Header.Set(generalHeaders[i].key, generalHeaders[i].value)
 	}
+}
+
+func drainBody(body io.ReadCloser) {
+	io.Copy(io.Discard, body)
+	body.Close()
 }

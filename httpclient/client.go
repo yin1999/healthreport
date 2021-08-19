@@ -13,7 +13,8 @@ var timeZone = time.FixedZone("CST", 8*3600)
 func LoginConfirm(ctx context.Context, account [2]string, timeout time.Duration) error {
 	var cc context.CancelFunc
 	ctx, cc = context.WithTimeout(ctx, timeout)
-	_, err := login(ctx, account)
+	c := &punchClient{}
+	err := c.login(ctx, account)
 	cc()
 	return parseURLError(err)
 }
@@ -28,13 +29,13 @@ func Punch(ctx context.Context, account [2]string, timeout time.Duration) (err e
 		err = parseURLError(err)
 	}()
 
-	var jar customCookieJar
-	jar, err = login(ctx, account) // 登录，获取cookie
+	c := &punchClient{}
+	err = c.login(ctx, account) // 登录，获取cookie
 	if err != nil {
 		return
 	}
 
-	err = getFormSessionID(ctx, jar) // 获取打卡系统的cookie
+	err = c.getFormSessionID() // 获取打卡系统的cookie
 	if err != nil {
 		return
 	}
@@ -43,12 +44,12 @@ func Punch(ctx context.Context, account [2]string, timeout time.Duration) (err e
 		form   *HealthForm
 		params *QueryParam
 	)
-	form, params, err = getFormDetail(ctx, jar) // 获取打卡列表信息
+	form, params, err = c.getFormDetail() // 获取打卡列表信息
 	if err != nil {
 		return
 	}
 
-	err = postForm(ctx, form, params, jar) // 提交表单
+	err = c.postForm(form, params) // 提交表单
 	return
 }
 

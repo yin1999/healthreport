@@ -1,5 +1,10 @@
 package httpclient
 
+import (
+	"context"
+	"net/http"
+)
+
 type header struct {
 	key   string
 	value string
@@ -49,4 +54,10 @@ type CookieNotFoundErr struct {
 
 func (t CookieNotFoundErr) Error() string {
 	return "http: can't find cookie: " + t.cookie
+}
+
+type punchClient struct {
+	ctx        context.Context
+	httpClient *http.Client
+	jar        customCookieJar
 }
