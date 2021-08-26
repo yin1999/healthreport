@@ -121,7 +121,9 @@ func main() {
 		}
 	}
 
-	serveCfg.PunchServe(ctx, account)
+	if err = serveCfg.PunchServe(ctx, account); err != nil && err != context.Canceled {
+		logger.Fatalln(err.Error())
+	}
 }
 
 func init() {

@@ -2,9 +2,9 @@ package serve
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"time"
 )
 
@@ -38,12 +38,15 @@ type Config struct {
 	PunchFunc    func(ctx context.Context, account [2]string, timeout time.Duration) error
 }
 
+// ErrMaximumAttemptsExceeded reached the maximum attempts to punch
+var ErrMaximumAttemptsExceeded = errors.New("serve: maximum attempts exceeded")
+
 // PunchServe universal punch service.
 // When it is called, it will call the punch function immediately,
 // and then call the punch function daily.
-func (cfg Config) PunchServe(ctx context.Context, account [2]string) {
-	if ctx.Err() != nil {
-		return
+func (cfg Config) PunchServe(ctx context.Context, account [2]string) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	cfg.Logger.Print("Punch on a 24-hour cycle\n")
@@ -61,22 +64,25 @@ func (cfg Config) PunchServe(ctx context.Context, account [2]string) {
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 
 	timer := time.NewTimer(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
+	c := make(chan struct{})
 	for {
-		go cfg.PunchRoutine(ctx, account)
+		go cfg.PunchRoutine(ctx, account, c)
 
 		select {
 		case <-timer.C:
+		case <-c:
+			return ErrMaximumAttemptsExceeded
 		case <-ctx.Done():
 			timer.Stop()
-			return
+			return ctx.Err()
 		}
-		nextTime = nextTime.Add(24 * time.Hour)
+		nextTime = nextTime.AddDate(0, 0, 1)
 		timer.Reset(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
 	}
 }
 
 // PunchRoutine punch until successed or max attempts reached
-func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
+func (cfg Config) PunchRoutine(ctx context.Context, account [2]string, done chan struct{}) {
 	cfg.Logger.Print("Start punch routine\n")
 	var err error
 
@@ -119,5 +125,5 @@ func (cfg Config) PunchRoutine(ctx context.Context, account [2]string) {
 		}
 	}
 	cfg.Logger.Printf("Maximum attempts: %d reached. Last error: %s\n", cfg.MaxAttempts, err.Error())
-	os.Exit(1)
+	close(done)
 }
