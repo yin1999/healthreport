@@ -61,3 +61,12 @@ type punchClient struct {
 	httpClient *http.Client
 	jar        customCookieJar
 }
+
+type Account struct {
+	Username string
+	Password string
+}
+
+func (a Account) Name() string {
+	return a.Username
+}

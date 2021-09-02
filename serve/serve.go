@@ -35,7 +35,11 @@ type Config struct {
 	MailNickName string
 	Timeout      time.Duration
 	RetryAfter   time.Duration
-	PunchFunc    func(ctx context.Context, account [2]string, timeout time.Duration) error
+	PunchFunc    func(ctx context.Context, account interface{}, timeout time.Duration) error
+}
+
+type Account interface {
+	Name() string
 }
 
 // ErrMaximumAttemptsExceeded reached the maximum attempts to punch
@@ -44,7 +48,7 @@ var ErrMaximumAttemptsExceeded = errors.New("serve: maximum attempts exceeded")
 // PunchServe universal punch service.
 // When it is called, it will call the punch function immediately,
 // and then call the punch function daily.
-func (cfg Config) PunchServe(ctx context.Context, account [2]string) error {
+func (cfg Config) PunchServe(ctx context.Context, account Account) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -82,7 +86,7 @@ func (cfg Config) PunchServe(ctx context.Context, account [2]string) error {
 }
 
 // PunchRoutine punch until successed or max attempts reached
-func (cfg Config) PunchRoutine(ctx context.Context, account [2]string, done chan struct{}) {
+func (cfg Config) PunchRoutine(ctx context.Context, account Account, done chan struct{}) {
 	cfg.Logger.Print("Start punch routine\n")
 	var err error
 
@@ -119,7 +123,7 @@ func (cfg Config) PunchRoutine(ctx context.Context, account [2]string, done chan
 	if cfg.Sender != nil {
 		e := cfg.Sender.Send(cfg.MailNickName,
 			fmt.Sprintf("打卡状态推送-%s", time.Now().In(cfg.Time.TimeZone).Format("2006-01-02")),
-			fmt.Sprintf("账户：%s 打卡失败(err: %s)", account[0], err.Error()))
+			fmt.Sprintf("账户：%s 打卡失败(err: %s)", account.Name(), err.Error()))
 		if e != nil {
 			cfg.Logger.Printf("Send message failed, err: %s\n", e.Error())
 		}

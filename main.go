@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
+	"log"
 	"os"
 	"os/signal"
+	"reflect"
 	"runtime"
 	"syscall"
 	"time"
@@ -15,9 +17,6 @@ import (
 	"github.com/yin1999/healthreport/serve"
 	"github.com/yin1999/healthreport/utils/config"
 	"github.com/yin1999/healthreport/utils/email"
-	"github.com/yin1999/healthreport/utils/log"
-	"github.com/yin1999/healthreport/utils/object"
-	"golang.org/x/term"
 )
 
 // build info
@@ -28,61 +27,31 @@ var (
 )
 
 const (
-	mailNickName    = "打卡状态推送"
-	mailConfigPath  = "email.json"
-	logPath         = "log"         // 日志存储目录
-	configPath      = "config.json" // 配置文件
-	accountFilename = "account"     // 账户信息存储文件名
+	mailNickName = "打卡状态推送"
 
 	retryAfter   = 5 * time.Minute
 	punchTimeout = 30 * time.Second
 )
 
-func main() {
-	logger, err := log.New(logPath, log.DefaultLayout)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
-	}
-	defer logger.Close()
+var (
+	cfg     = &config.Config{}
+	account = &client.Account{}
 
+	mailConfigPath  string
+	accountFilename string // 账户信息存储文件名
+	logger          = log.Default()
+)
+
+func main() {
 	defer logger.Print("Exit\n")
 	logger.Print("Start program\n")
 
-	cfg := &config.Config{} // config
-	if err = cfg.Load(configPath); err == nil {
-		logger.Printf("Got config from file: '%s'\n", configPath)
-	} else {
-		cfg.GetFromStdin()
-		if err = cfg.Store(configPath); err != nil {
-			logger.Printf("Cannot save config, err: %s\n", err.Error())
-		}
-	}
 	cfg.Show(logger)
 
-	var emailCfg *email.Config
-	emailCfg, err = email.LoadConfig(mailConfigPath)
+	emailCfg, err := email.LoadConfig(mailConfigPath)
 	if err == nil {
 		logger.Print("Email deliver enabled\n")
 	}
-
-	var account [2]string // 账户信息
-	if err = object.Load(&account, accountFilename); err == nil {
-		logger.Printf("Got account info from file '%s'\n", accountFilename)
-	} else {
-		if err = getAccount(&account); err != nil {
-			logger.Printf("Err: %s\n", err.Error())
-			os.Exit(1)
-		}
-
-		logger.Print("Got account info from 'Stdin'\n")
-
-		if err = object.Store(account, accountFilename); err != nil {
-			logger.Printf("Cannot save account info, err: %s\n", err.Error())
-		}
-	}
-
-	fmt.Print("Ctrl+C可退出程序\n")
 
 	ctx, cc := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cc()
@@ -127,57 +96,80 @@ func main() {
 }
 
 func init() {
-	if len(os.Args) >= 2 {
-		var (
-			returnCode = 0
-			version    bool
-			checkEmail bool
-		)
+	var (
+		version    bool
+		checkEmail bool
+		save       bool
+	)
 
-		flag.BoolVar(&version, "v", false, "show version and exit")
-		flag.BoolVar(&checkEmail, "c", false, "check email")
-		flag.Parse()
+	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	flagSet.BoolVar(&version, "v", false, "show version and exit")
+	flagSet.BoolVar(&checkEmail, "e", false, "check email")
+	flagSet.StringVar(&account.Username, "u", "", "set username")
+	flagSet.StringVar(&account.Password, "p", "", "set password")
+	flagSet.StringVar(&mailConfigPath, "email", "email.json", "set email config file path")
+	flagSet.StringVar(&accountFilename, "account", "account.json", "set account file path")
+	flagSet.BoolVar(&save, "save", false, "whether save config to file")
+	cfg.SetFlag(flagSet)
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		if err == flag.ErrHelp {
+			os.Exit(0)
+		}
+		logger.Fatalln(err.Error())
+	}
 
-		if version {
-			fmt.Printf("Program Version:        %s\n", ProgramVersion)
-			fmt.Printf("Go Version:             %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
-			fmt.Printf("Build Time:             %s\n", BuildTime)
-			fmt.Printf("Program Commit ID:      %s\n", ProgramCommitID)
+	if version {
+		fmt.Printf("Program Version:        %s\n", ProgramVersion)
+		fmt.Printf("Go Version:             %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("Build Time:             %s\n", BuildTime)
+		fmt.Printf("Program Commit ID:      %s\n", ProgramCommitID)
+		os.Exit(0)
+	}
+
+	if checkEmail {
+		cfg, err := email.LoadConfig(mailConfigPath)
+		if err == nil {
+			err = cfg.LoginTest()
 		}
 
-		if checkEmail {
-			cfg, err := email.LoadConfig(mailConfigPath)
-			if err == nil {
-				err = cfg.LoginTest()
-			}
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "email check: failed, err: %s\n", err.Error())
-				returnCode = 1
-			} else {
-				fmt.Print("email check: pass\n")
-			}
+		if err != nil {
+			logger.Fatalf("email check: failed, err: %s\n", err.Error())
 		}
+		fmt.Print("email check: pass\n")
+		os.Exit(0)
+	}
 
-		os.Exit(returnCode)
+	err := loadJson(account, accountFilename, false)
+	if err != nil {
+		logger.Fatalln(err.Error())
+	}
+
+	if save {
+		if err = storeJson(account, accountFilename); err != nil {
+			logger.Printf("account: save to file failed(Err: %s)\n", err.Error())
+		}
 	}
 }
 
-func getAccount(account *[2]string) (err error) {
-	var data string
-	for len(data) == 0 && err != io.EOF { // avoid expect new line error
-		fmt.Print("输入用户名:")
-		_, err = fmt.Scanln(&data)
+func loadJson(v interface{}, name string, override bool) error {
+	if field := reflect.ValueOf(v).Elem(); !field.IsZero() && !override {
+		return nil
 	}
+	f, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewDecoder(f).Decode(v)
+}
 
-	var passwd []byte
-	for len(passwd) == 0 && err == nil {
-		fmt.Print("输入密码:")
-		passwd, err = term.ReadPassword(int(syscall.Stdin))
-		fmt.Print("\n") // print in new line
+func storeJson(v interface{}, name string) error {
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
 	}
-	if err == nil {
-		account[0], account[1] = data, string(passwd)
-	}
-	return
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "\t")
+	return enc.Encode(v)
 }

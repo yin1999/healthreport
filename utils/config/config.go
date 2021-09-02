@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"time"
 )
@@ -39,7 +41,26 @@ type Printer interface {
 	Printf(format string, v ...interface{})
 }
 
+// SetFlag load config from args
+func (cfg *Config) SetFlag(flag *flag.FlagSet) {
+	if field := reflect.ValueOf(cfg.PunchTime); field.IsZero() {
+		now := time.Now()
+		cfg.PunchTime.Hour = now.Hour()
+		cfg.PunchTime.Minute = now.Minute()
+	}
+	flag.Func("t", "set punch time(default: now)", func(s string) error {
+		return cfg.PunchTime.UnmarshalText([]byte(s))
+	})
+	if cfg.MaxAttempts == 0 {
+		cfg.MaxAttempts = 16
+	}
+	flag.Func("c", "set maximum retry attempts when punch failed", func(s string) error {
+		return cfg.MaxAttempts.UnmarshalJSON([]byte(s))
+	})
+}
+
 // Store write config to file
+// Deprecated: please using SetFlag instead(load config from args).
 func (cfg *Config) Store(path string) error {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, 0744)
@@ -56,6 +77,7 @@ func (cfg *Config) Store(path string) error {
 }
 
 // Load read config from file
+// Deprecated: function Store will be removed in a future version
 func (cfg *Config) Load(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -88,6 +110,7 @@ func (cfg *Config) Show(logger Printer) {
 }
 
 // GetFromStdin 从Stdin获取配置信息
+// Deprecated: function Store will be removed in a future version
 func (cfg *Config) GetFromStdin() {
 	var (
 		inputString string

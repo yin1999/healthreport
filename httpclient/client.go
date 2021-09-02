@@ -10,17 +10,17 @@ import (
 var timeZone = time.FixedZone("CST", 8*3600)
 
 // LoginConfirm 验证账号密码
-func LoginConfirm(ctx context.Context, account [2]string, timeout time.Duration) error {
+func LoginConfirm(ctx context.Context, account interface{}, timeout time.Duration) error {
 	var cc context.CancelFunc
 	ctx, cc = context.WithTimeout(ctx, timeout)
 	c := &punchClient{}
-	err := c.login(ctx, account)
+	err := c.login(ctx, account.(*Account))
 	cc()
 	return parseURLError(err)
 }
 
 // Punch 打卡
-func Punch(ctx context.Context, account [2]string, timeout time.Duration) (err error) {
+func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err error) {
 	var cc context.CancelFunc
 	ctx, cc = context.WithTimeout(ctx, timeout)
 	defer cc()
@@ -30,7 +30,7 @@ func Punch(ctx context.Context, account [2]string, timeout time.Duration) (err e
 	}()
 
 	c := &punchClient{}
-	err = c.login(ctx, account) // 登录，获取cookie
+	err = c.login(ctx, account.(*Account)) // 登录，获取cookie
 	if err != nil {
 		return
 	}

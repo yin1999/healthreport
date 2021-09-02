@@ -12,8 +12,9 @@ healthreport
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# binary account info. The new version.
+# account info file
 account
+account.json
 
 # log
 /log

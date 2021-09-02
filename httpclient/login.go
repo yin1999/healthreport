@@ -25,7 +25,7 @@ type loginForm struct {
 }
 
 // login 登录系统
-func (c *punchClient) login(ctx context.Context, account [2]string) (err error) {
+func (c *punchClient) login(ctx context.Context, account *Account) (err error) {
 	const loginURL = "https://authserver.hhu.edu.cn/authserver/login"
 	c.ctx = ctx
 	var req *http.Request
@@ -74,8 +74,8 @@ func (c *punchClient) login(ctx context.Context, account [2]string) (err error) 
 	}
 	drainBody(res.Body)
 
-	f.Username = account[0]
-	f.Password, err = encryptAES(account[1], f.EncryptKey)
+	f.Username = account.Username
+	f.Password, err = encryptAES(account.Password, f.EncryptKey)
 	if err != nil {
 		return
 	}
