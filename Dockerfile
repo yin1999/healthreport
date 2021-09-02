@@ -10,6 +10,7 @@ FROM debian:bullseye-slim
 WORKDIR /app
 
 COPY --from=builder /app/healthreport /app/healthreport
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 VOLUME ["/run/secrets"]
 
