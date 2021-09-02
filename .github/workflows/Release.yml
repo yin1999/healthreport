@@ -78,4 +78,6 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         push: true
-        tags: yin199909/healthreport:${{ env.VERSION }}
+        tags: |
+          yin199909/healthreport:${{ env.VERSION }}
+          yin199909/healthreport:latest
