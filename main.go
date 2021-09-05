@@ -135,7 +135,7 @@ func initApp() {
 	flagSet.StringVar(&account.Username, "u", "", "set username")
 	flagSet.StringVar(&account.Password, "p", "", "set password")
 	flagSet.StringVar(&mailConfigPath, "email", "email.json", "set email config file path")
-	flagSet.StringVar(&accountFilename, "account", "account.json", "set account file path")
+	flagSet.StringVar(&accountFilename, "account", "account.json", "set account file path(json format with keys:'username','password')")
 	flagSet.BoolVar(&save, "save", false, "whether save config to file")
 	cfg.SetFlag(flagSet)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {

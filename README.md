@@ -11,8 +11,8 @@
 目前，[最新版本](https://github.com/yin1999/healthreport/releases/latest)具有以下特性:
 
     1. 每日自动打卡
-    2. 一次打卡失败，自动重新尝试，可设置最大打卡尝试次数以及重新打卡的等待时间
-    3. 日志同步输出到Stderr以及log文件
+    2. 一次打卡失败，自动重新尝试，可设置最大打卡尝试次数
+    3. 日志同步输出到Stderr
     4. 版本查询
     5. 打卡失败邮件通知推送功能(目前支持STARTTLS/TLS端口+PlainAuth登录到SMTP服务器)
 
@@ -53,9 +53,13 @@
 
 ## 使用说明
 
+### Docker
+
+应用支持Docker部署，具体使用方法请参考[yin199909/healthreport](https://hub.docker.com/repository/docker/yin199909/healthreport)
+
 ### linux
 
-1. 安装 screen
+1. 安装 screen（可选择配置使用systemd，配置文件模板: `_script/healthreport.service`）
 
 	```bash
 	sudo yum install screen  # CentOS
@@ -73,10 +77,11 @@
 	通过screen进行shell管理，可通过[菜鸟教程](https://www.runoob.com/linux/linux-comm-screen.html)学习相关命令
 
 	```bash
-	screen ./healthreport
+	# example(set punch time as 9:52)
+	screen ./healthreport -u username -p password -t 9:52 -save # Ctrl+A+D to detach
 	```
 
-**请使用ctrl+a+d离开screen窗口，ctrl+c是用来终止程序的**
+	或者使用`systemd`
 
 ### Windows
 
@@ -116,16 +121,10 @@
 	./healthreport -v
 	```
 
-2. 帮助信息
+2. 帮助信息（提供程序的所有命令行参数）
 
 	```bash
 	./healthreport -h
-	```
-
-3. 验证SMTP服务
-
-	```bash
-	./healthreport -c
 	```
 
 4. 版本更新

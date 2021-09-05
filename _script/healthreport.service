@@ -1,0 +1,13 @@
+# path: /usr/lib/systemd/system/healthreport.service
+# Please replace `curly braces` with the actual values
+[Unit]
+Description=healthreport daemon
+After=network-online.target
+
+[Service]
+ExecStart={dir to exec}/healthreport -u {username} -p {password} -t {punch time}
+ExecReload=/bin/kill -HUP $MAINPID
+Type=notify
+
+[Install]
+WantedBy=multi-user.target
