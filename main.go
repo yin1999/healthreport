@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"reflect"
 	"runtime"
 	"syscall"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/yin1999/healthreport/serve"
 	"github.com/yin1999/healthreport/utils/config"
 	"github.com/yin1999/healthreport/utils/email"
+	"github.com/yin1999/healthreport/utils/systemd"
 )
 
 // build info
@@ -45,7 +45,33 @@ var (
 func main() {
 	defer logger.Print("Exit\n")
 	logger.Print("Start program\n")
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		ctx, cc := context.WithCancel(context.Background())
+		exit := false
+		go func() {
+			switch <-c {
+			case syscall.SIGHUP:
+				systemd.Notify(systemd.Reloading)
+				cc()
+			case syscall.SIGINT, syscall.SIGTERM:
+				systemd.Notify(systemd.Stopping)
+				exit = true
+				cc()
+			}
+		}()
+		app(ctx, func() {
+			systemd.Notify(systemd.Ready)
+		})
+		if exit {
+			break
+		}
+		initApp() // load config
+	}
+}
 
+func app(ctx context.Context, ready func()) {
 	cfg.Show(logger)
 
 	emailCfg, err := email.LoadConfig(mailConfigPath)
@@ -53,15 +79,12 @@ func main() {
 		logger.Print("Email deliver enabled\n")
 	}
 
-	ctx, cc := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cc()
-
 	logger.Print("正在验证账号密码\n")
 	err = client.LoginConfirm(ctx, account, punchTimeout)
 	if err != nil {
-		logger.Printf("验证密码失败(Err: %s)\n", err.Error())
-		return
+		logger.Fatalf("验证密码失败(Err: %s)\n", err.Error())
 	}
+	ready()
 	logger.Print("账号密码验证成功，将在5秒后开始打卡\n")
 
 	serveCfg := &serve.Config{
@@ -89,13 +112,17 @@ func main() {
 			return
 		}
 	}
-
-	if err = serveCfg.PunchServe(ctx, account); err != nil && err != context.Canceled {
+	err = serveCfg.PunchServe(ctx, account)
+	if err != nil && err != context.Canceled {
 		logger.Fatalln(err.Error())
 	}
 }
 
 func init() {
+	initApp()
+}
+
+func initApp() {
 	var (
 		version    bool
 		checkEmail bool
@@ -139,22 +166,23 @@ func init() {
 		os.Exit(0)
 	}
 
-	err := loadJson(account, accountFilename, false)
-	if err != nil {
-		logger.Fatalln(err.Error())
+	fromArgs := account.Username != "" || account.Password != ""
+
+	if !fromArgs {
+		err := loadJson(account, accountFilename)
+		if err != nil {
+			logger.Fatalln(err.Error())
+		}
 	}
 
-	if save {
-		if err = storeJson(account, accountFilename); err != nil {
+	if save && fromArgs {
+		if err := storeJson(account, accountFilename); err != nil {
 			logger.Printf("account: save to file failed(Err: %s)\n", err.Error())
 		}
 	}
 }
 
-func loadJson(v interface{}, name string, override bool) error {
-	if field := reflect.ValueOf(v).Elem(); !field.IsZero() && !override {
-		return nil
-	}
+func loadJson(v interface{}, name string) error {
 	f, err := os.Open(name)
 	if err != nil {
 		return err
