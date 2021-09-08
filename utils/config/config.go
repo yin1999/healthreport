@@ -60,6 +60,7 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 }
 
 // Store write config to file
+//
 // Deprecated: please using SetFlag instead(load config from args).
 func (cfg *Config) Store(path string) error {
 	dir := filepath.Dir(path)
@@ -77,6 +78,7 @@ func (cfg *Config) Store(path string) error {
 }
 
 // Load read config from file
+//
 // Deprecated: function Store will be removed in a future version
 func (cfg *Config) Load(path string) error {
 	data, err := os.ReadFile(path)
@@ -110,6 +112,7 @@ func (cfg *Config) Show(logger Printer) {
 }
 
 // GetFromStdin 从Stdin获取配置信息
+//
 // Deprecated: function Store will be removed in a future version
 func (cfg *Config) GetFromStdin() {
 	var (

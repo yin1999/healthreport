@@ -1,3 +1,6 @@
+// Package log implements logging to both file and os.Stderr
+//
+// Deprecated: log to os.Stderr only
 package log
 
 import (

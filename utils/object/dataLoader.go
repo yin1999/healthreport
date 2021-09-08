@@ -1,3 +1,6 @@
+// Package object implements serializing data to file
+//
+// Deprecated: using "encoding/json" to serialize data(easy to edit with text editor)
 package object
 
 import (
