@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -86,14 +87,19 @@ func (c *punchClient) getFormDetail() (form *HealthForm, params *QueryParam, err
 		return
 	}
 
-	form = &HealthForm{}
+	tmpForm := &HealthForm{}
 
-	if err = json.Unmarshal(resData[indexHealthFormData], form); err != nil {
+	if err = json.Unmarshal(resData[indexHealthFormData], tmpForm); err != nil {
 		return
 	}
 
-	form.DataTime = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
+	tmpForm.DataTime = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
 
+	if err = fieldZeroValueCheck(tmpForm); err != nil {
+		return
+	}
+
+	form = tmpForm
 	params = &QueryParam{
 		Wid:    string(resData[indexWID]),
 		UserID: form.StudentID,
@@ -169,4 +175,14 @@ func getSlice(data string, startSymbol, endSymbol byte, containSymbol bool) ([]b
 	copy(res, data[start:]) // copy the sub string from data to res
 
 	return res, nil
+}
+
+func fieldZeroValueCheck(item interface{}) error {
+	v := reflect.ValueOf(item).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).IsZero() {
+			return errors.New("field: '" + v.Type().Field(i).Name + "' is zero value")
+		}
+	}
+	return nil
 }
