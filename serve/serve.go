@@ -38,7 +38,9 @@ type Config struct {
 	PunchFunc    func(ctx context.Context, account interface{}, timeout time.Duration) error
 }
 
+// Account interface for get account name
 type Account interface {
+	// Name get the name of account
 	Name() string
 }
 

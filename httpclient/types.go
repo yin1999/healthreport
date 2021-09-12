@@ -51,11 +51,13 @@ type punchClient struct {
 	jar        customCookieJar
 }
 
+// Account account info for login
 type Account struct {
 	Username string
 	Password string
 }
 
+// Name get the name of the account
 func (a Account) Name() string {
 	return a.Username
 }
