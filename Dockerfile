@@ -1,11 +1,11 @@
-FROM golang:latest as builder
+FROM golang:alpine as builder
 
 WORKDIR /app
 
 COPY . ./
 RUN go mod download && go run _script/make.go
 
-FROM debian:bullseye-slim
+FROM alpine:latest
 
 WORKDIR /app
 
