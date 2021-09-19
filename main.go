@@ -124,14 +124,16 @@ func init() {
 
 func initApp() {
 	var (
-		version    bool
-		checkEmail bool
-		save       bool
+		version     bool
+		checkEmail  bool
+		genEmailCfg bool
+		save        bool
 	)
 
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	flagSet.BoolVar(&version, "v", false, "show version and exit")
 	flagSet.BoolVar(&checkEmail, "e", false, "check email")
+	flagSet.BoolVar(&genEmailCfg, "g", false, "generate email config")
 	flagSet.StringVar(&account.Username, "u", "", "set username")
 	flagSet.StringVar(&account.Password, "p", "", "set password")
 	flagSet.StringVar(&mailConfigPath, "email", "email.json", "set email config file path")
@@ -163,6 +165,17 @@ func initApp() {
 			logger.Fatalf("email check: failed, err: %s\n", err.Error())
 		}
 		fmt.Print("email check: pass\n")
+		os.Exit(0)
+	}
+
+	if genEmailCfg {
+		cfg, _ := email.LoadConfig(mailConfigPath)
+		if cfg == nil {
+			cfg = email.Example()
+		}
+		if err := storeJson(cfg, mailConfigPath); err != nil {
+			logger.Fatalln(err.Error())
+		}
 		os.Exit(0)
 	}
 

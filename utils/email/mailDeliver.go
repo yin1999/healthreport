@@ -18,7 +18,8 @@ var (
 	ErrNoReceiver = errors.New("mail: no receiver")
 )
 
-type emailAccount struct {
+// SmtpConfig smtp config
+type SmtpConfig struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	TLS      bool   `json:"TLS"`
@@ -28,8 +29,8 @@ type emailAccount struct {
 
 // Config smtp config
 type Config struct {
-	To   []string     `json:"to"`
-	SMTP emailAccount `json:"SMTP"`
+	To   []string   `json:"to"`
+	SMTP SmtpConfig `json:"SMTP"`
 }
 
 // LoginTest return nil, expect cannot login to the server
@@ -86,6 +87,20 @@ func (cfg *Config) Send(nickName, subject, body string) error {
 		cfg.SMTP.Username,
 		cfg.To,
 		[]byte(message))
+}
+
+// Example return an email config example
+func Example() *Config {
+	return &Config{
+		To: []string{"xxx@example.com"},
+		SMTP: SmtpConfig{
+			Username: "username@example.com",
+			Password: "password",
+			TLS:      true,
+			Host:     "smtp.example.com",
+			Port:     465,
+		},
+	}
 }
 
 // LoadConfig if Email config exists, return email config

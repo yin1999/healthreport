@@ -93,16 +93,16 @@
 
 ### 邮件通知
 
-1. 复制**email-template.json**命名为**email.json**
+1. 生成**email.json**
 
 	```bash
-	cp email-template.json email.json  # Linux命令
+	./healthreport -g  # Linux命令，可使用 '-email' 指定配置文件生成目录
 	```
 
 2. 修改**email.json**中的的配置，具体说明如下:
 
 	```properties
-	to:    收件邮箱(string list)  
+	to:    收件邮箱(string list)
 	SMTP:  SMTP 配置
 	    username:   SMTP用户名(string)
 	    password:   SMTP用户密码(string)
