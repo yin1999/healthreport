@@ -1,4 +1,4 @@
-# 健康打卡
+# 河海大学健康打卡
 
 [![build](https://github.com/yin1999/healthreport/actions/workflows/Build.yml/badge.svg)](https://github.com/yin1999/healthreport/actions/workflows/Build.yml) [![Go Report Card](https://goreportcard.com/badge/github.com/yin1999/healthreport)](https://goreportcard.com/report/github.com/yin1999/healthreport) [![Go Reference](https://pkg.go.dev/badge/github.com/yin1999/healthreport.svg)](https://pkg.go.dev/github.com/yin1999/healthreport)
 
@@ -57,46 +57,30 @@
 
 应用支持Docker部署，具体使用方法请参考[yin199909/healthreport](https://hub.docker.com/repository/docker/yin199909/healthreport)
 
-### linux
+### Linux/Windows
 
-1. 安装 screen（可选择配置使用systemd，配置文件模板: `_script/healthreport.service`）
-
-	```bash
-	sudo yum install screen  # CentOS
-	sudo apt install screen  # Debian/Ubuntu
-	```
-
-2. 授予可执行权限(`源码编译`的可以跳过此步)
+1. 授予可执行权限(`源码编译`或`Windows`平台的可以跳过此步)
 
 	```bash
 	chmod +x healthreport
 	```
 
-3. 运行
-
-	通过screen进行shell管理，可通过[菜鸟教程](https://www.runoob.com/linux/linux-comm-screen.html)学习相关命令
+2. 运行
 
 	```bash
 	# example(set punch time as 9:52)
-	screen ./healthreport -u username -p password -t 9:52 -save # Ctrl+A+D to detach
+	./healthreport -u username -p password -t 9:52 -save
+	# -save: 保存账户信息至文件，第二次启动程序时可不设置用户名、密码两个参数（仅使用: ./healthreport -t 9:52）
 	```
 
-	或者使用`systemd`
-
-### Windows
-
-命令行中执行
-
-```cmd
-.\healthreport
-```
+	**Linux**用户可使用`systemd`(recommend，配置模板：`_script/healthreport.service`)或者`screen`管理打卡进程
 
 ### 邮件通知
 
 1. 生成**email.json**
 
 	```bash
-	./healthreport -g  # Linux命令，可使用 '-email' 指定配置文件生成目录
+	./healthreport -g  # 可使用 '-email' 指定配置文件生成目录
 	```
 
 2. 修改**email.json**中的的配置，具体说明如下:
