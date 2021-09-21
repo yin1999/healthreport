@@ -39,7 +39,7 @@ func getWithContext(ctx context.Context, url string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx,
 		http.MethodGet,
 		url,
-		http.NoBody,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -67,24 +67,23 @@ func getResponseN(n int) func(req *http.Request, via []*http.Request) error {
 	}
 }
 
-func pkcs7Pad(data []byte, blockSize int) []byte {
-	padLen := blockSize - len(data)%blockSize
-	padding := bytes.Repeat([]byte{byte(padLen)}, padLen)
-	return append(data, padding...)
-}
-
 func encryptAES(data, key string) (string, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
 		return "", err
 	}
-	plainText := pkcs7Pad([]byte(data), aes.BlockSize)
-	cipherText := make([]byte, 64+len(plainText))
-	iv := make([]byte, 16)
+	padLen := aes.BlockSize - len(data)%aes.BlockSize
+	cipherText := make([]byte, 64+len(data)+padLen)
 	randBytes(cipherText[:64])
+	copy(cipherText[64:], []byte(data))
+	if padLen > 0 {
+		pad := bytes.Repeat([]byte{byte(padLen)}, padLen)
+		copy(cipherText[64+len(data):], pad)
+	}
+	iv := make([]byte, 16)
 	randBytes(iv)
 
-	copy(cipherText[64:], plainText)
+	copy(cipherText[64:], data)
 
 	mode := cipher.NewCBCEncrypter(block, iv)
 
