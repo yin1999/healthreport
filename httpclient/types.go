@@ -5,11 +5,6 @@ import (
 	"net/http"
 )
 
-type header struct {
-	key   string
-	value string
-}
-
 // QueryParam query param struct
 type QueryParam struct {
 	Wid    string `url:"wid"`
