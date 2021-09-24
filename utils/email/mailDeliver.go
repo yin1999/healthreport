@@ -1,6 +1,7 @@
 package email
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -62,16 +63,17 @@ func (cfg *Config) Send(nickName, subject, body string) error {
 	if len(cfg.To) == 0 {
 		return ErrNoReceiver
 	}
-	header := make(map[string]string)
-	header["From"] = nickName + "<" + cfg.SMTP.Username + ">"
-	header["To"] = strings.Join(cfg.To, ";")
-	header["Subject"] = subject
-	header["Content-Type"] = "text/html; charset=UTF-8"
-	message := ""
-	for k, v := range header {
-		message += fmt.Sprintf("%s: %s\r\n", k, v)
+	header := [][2]string{
+		{"From", nickName + "<" + cfg.SMTP.Username + ">"},
+		{"To", strings.Join(cfg.To, ";")},
+		{"Subject", subject},
+		{"Content-Type", "text/html; charset=UTF-8"},
 	}
-	message += "\r\n" + body
+	message := bytes.Buffer{}
+	for _, v := range header {
+		message.WriteString(fmt.Sprintf("%s: %s\r\n", v[0], v[1]))
+	}
+	message.WriteString("\r\n" + body)
 	auth := smtp.PlainAuth(
 		"",
 		cfg.SMTP.Username,
@@ -86,7 +88,8 @@ func (cfg *Config) Send(nickName, subject, body string) error {
 		auth,
 		cfg.SMTP.Username,
 		cfg.To,
-		[]byte(message))
+		message.Bytes(),
+	)
 }
 
 // Example return an email config example
@@ -133,7 +136,6 @@ func newClient(host string, port int, TLS bool) (client *smtp.Client, err error)
 
 	client, err = smtp.NewClient(conn, host)
 	if err != nil {
-		client.Close()
 		return
 	}
 	if TLS {
