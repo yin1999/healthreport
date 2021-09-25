@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -49,20 +49,20 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 		cfg.PunchTime.Minute = now.Minute()
 	}
 	flag.Func("t", "set punch time(default: now)", func(s string) error {
-		return cfg.PunchTime.UnmarshalText([]byte(s))
+		return cfg.PunchTime.parse(s)
 	})
 	if cfg.MaxAttempts == 0 {
 		cfg.MaxAttempts = 16
 	}
-	flag.Func("c", "set maximum retry attempts when punch failed", func(s string) error {
-		return cfg.MaxAttempts.UnmarshalJSON([]byte(s))
+	flag.Func("c", "set maximum retry attempts when punch failed(default: 16)", func(s string) error {
+		return cfg.MaxAttempts.parse(s)
 	})
 }
 
 // Store write config to file
 //
 // Deprecated: please using SetFlag instead(load config from args).
-func (cfg *Config) Store(path string) error {
+func (cfg Config) Store(path string) error {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, 0744)
 	if err != nil {
@@ -92,7 +92,7 @@ func (cfg *Config) Load(path string) error {
 }
 
 // Check check config
-func (cfg *Config) Check() error {
+func (cfg Config) Check() error {
 	if cfg.MaxAttempts <= 0 || cfg.MaxAttempts > 120 {
 		return ErrOutOfRange
 	}
@@ -106,7 +106,7 @@ func (cfg *Config) Check() error {
 }
 
 // Show return configuration
-func (cfg *Config) Show(logger Printer) {
+func (cfg Config) Show(logger Printer) {
 	logger.Printf("Maximum number of attempts: %d\n", cfg.MaxAttempts)
 	logger.Printf("Time set: %02d:%02d\n", cfg.PunchTime.Hour, cfg.PunchTime.Minute)
 }
@@ -155,10 +155,9 @@ func (cfg *Config) GetFromStdin() {
 	}
 }
 
-// UnmarshalJSON interface of json.Unmarshal
-func (t *Attempts) UnmarshalJSON(text []byte) (err error) {
+func (t *Attempts) parse(text string) (err error) {
 	var n int
-	n, err = strconv.Atoi(string(text))
+	n, err = strconv.Atoi(text)
 	if err != nil {
 		return
 	}
@@ -169,28 +168,35 @@ func (t *Attempts) UnmarshalJSON(text []byte) (err error) {
 	return
 }
 
+// UnmarshalJSON interface of json.Unmarshal
+//
+// Deprecated: not load config from file
+func (t *Attempts) UnmarshalJSON(text []byte) error {
+	return t.parse(string(text))
+}
+
 // MarshalText interface of json.Marshal
+//
+// Deprecated: not store config to file
 func (t Time) MarshalText() (data []byte, err error) {
 	data = []byte(fmt.Sprintf("%02d:%02d", t.Hour, t.Minute))
 	return
 }
 
-// UnmarshalText interface of json.Unmarshal
-func (t *Time) UnmarshalText(text []byte) error {
-	index := bytes.IndexByte(text, ':')
+func (t *Time) parse(text string) error {
+	index := strings.IndexByte(text, ':')
 	if index <= 0 {
 		return ErrWrongFormat
 	}
 
-	s := string(text)
-	hour, err := strconv.Atoi(s[:index])
+	hour, err := strconv.Atoi(text[:index])
 	if err != nil || hour < 0 || hour >= 24 {
 		return ErrWrongFormat
 	}
 
 	var minute int
 
-	minute, err = strconv.Atoi(s[index+1:])
+	minute, err = strconv.Atoi(text[index+1:])
 	if err != nil || minute < 0 || minute >= 60 {
 		return ErrWrongFormat
 	}
@@ -198,4 +204,11 @@ func (t *Time) UnmarshalText(text []byte) error {
 	t.Hour = hour
 	t.Minute = minute
 	return err
+}
+
+// UnmarshalText interface of json.Unmarshal
+//
+// Deprecated: not load config from file
+func (t *Time) UnmarshalText(text []byte) error {
+	return t.parse(string(text))
 }

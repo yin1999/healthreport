@@ -108,14 +108,15 @@ func Example() *Config {
 
 // LoadConfig if Email config exists, return email config
 func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	cfg := &Config{}
-	if err = json.Unmarshal(data, cfg); err != nil {
-		return nil, err
+	if err = json.NewDecoder(file).Decode(cfg); err != nil {
+		cfg = nil
 	}
+	file.Close()
 	return cfg, err
 }
 

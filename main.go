@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	cfg     = &config.Config{}
+	cfg     = config.Config{}
 	account = &client.Account{}
 
 	mailConfigPath  string
@@ -123,22 +123,16 @@ func init() {
 }
 
 func initApp() {
-	var (
-		version     bool
-		checkEmail  bool
-		genEmailCfg bool
-		save        bool
-	)
-
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	flagSet.BoolVar(&version, "v", false, "show version and exit")
-	flagSet.BoolVar(&checkEmail, "e", false, "check email")
-	flagSet.BoolVar(&genEmailCfg, "g", false, "generate email config")
+	version := flagSet.Bool("v", false, "show version and exit")
+	checkEmail := flagSet.Bool("e", false, "check email")
+	genEmailCfg := flagSet.Bool("g", false, "generate email config")
+	save := flagSet.Bool("save", false, "whether save config to file")
+
 	flagSet.StringVar(&account.Username, "u", "", "set username")
 	flagSet.StringVar(&account.Password, "p", "", "set password")
 	flagSet.StringVar(&mailConfigPath, "email", "email.json", "set email config file path")
 	flagSet.StringVar(&accountFilename, "account", "account.json", "set account file path(json format with keys:'username','password')")
-	flagSet.BoolVar(&save, "save", false, "whether save config to file")
 	cfg.SetFlag(flagSet)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		if err == flag.ErrHelp {
@@ -147,15 +141,14 @@ func initApp() {
 		logger.Fatalln(err.Error())
 	}
 
-	if version {
+	if *version {
 		fmt.Printf("Program Version:        %s\n", ProgramVersion)
 		fmt.Printf("Go Version:             %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		fmt.Printf("Build Time:             %s\n", BuildTime)
 		fmt.Printf("Program Commit ID:      %s\n", ProgramCommitID)
-		os.Exit(0)
 	}
 
-	if checkEmail {
+	if *checkEmail {
 		cfg, err := email.LoadConfig(mailConfigPath)
 		if err == nil {
 			err = cfg.LoginTest()
@@ -165,10 +158,9 @@ func initApp() {
 			logger.Fatalf("email check: failed, err: %s\n", err.Error())
 		}
 		fmt.Print("email check: pass\n")
-		os.Exit(0)
 	}
 
-	if genEmailCfg {
+	if *genEmailCfg {
 		cfg, _ := email.LoadConfig(mailConfigPath)
 		if cfg == nil {
 			cfg = email.Example()
@@ -176,7 +168,6 @@ func initApp() {
 		if err := storeJson(cfg, mailConfigPath); err != nil {
 			logger.Fatalln(err.Error())
 		}
-		os.Exit(0)
 	}
 
 	fromArgs := account.Username != "" || account.Password != ""
@@ -188,10 +179,14 @@ func initApp() {
 		}
 	}
 
-	if save && fromArgs {
+	if *save && fromArgs {
 		if err := storeJson(account, accountFilename); err != nil {
 			logger.Printf("account: save to file failed(Err: %s)\n", err.Error())
 		}
+	}
+
+	if *version || *checkEmail || *genEmailCfg {
+		os.Exit(0)
 	}
 }
 
