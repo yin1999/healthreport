@@ -14,4 +14,4 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 
 VOLUME ["/run/secrets"]
 
-ENTRYPOINT ./healthreport -u="$username" -p="$password" -account="/run/secrets/account.json" -email="/run/secrets/email.json"
+ENTRYPOINT ./healthreport -u=${username} -p=${password} -account="/run/secrets/account.json" -email="/run/secrets/email.json"
