@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"reflect"
+	"net/url"
 	"strings"
 	"time"
 
@@ -35,28 +35,44 @@ var (
 )
 
 // getFormSessionID 获取打卡系统的SessionID
-func (c *punchClient) getFormSessionID() error {
-	req, err := getWithContext(c.ctx, "http://"+reportDomain+"/pdc/form/list")
+func (c *punchClient) getFormSessionID() (path string, err error) {
+	var req *http.Request
+	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/form/list")
 	if err != nil {
-		return err
+		return
 	}
 
 	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {
-		return err
+		return
+	}
+
+	bufferReader := bufio.NewReader(res.Body)
+
+	for err == nil && !strings.HasPrefix(path, `<a href="/pdc/formDesignApi/S/`) {
+		path, err = scanLine(bufferReader)
 	}
 	drainBody(res.Body)
 
-	if c.jar.GetCookieByDomain(reportDomain) == nil {
+	if path != "" {
+		var data []byte
+		data, err = parseData(path, symbolString)
+		path = string(data)
+	}
+
+	if c.jar.GetCookieByDomain(reportDomain) == nil && err == nil {
 		err = CookieNotFoundErr{"JSESSIONID"}
 	}
-	return err
+	if err != nil {
+		path = ""
+	}
+	return
 }
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail() (form *HealthForm, params *QueryParam, err error) {
+func (c *punchClient) getFormDetail(path string) (form map[string]string, params *QueryParam, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/gUTwwojq")
+	req, err = getWithContext(c.ctx, "http://"+reportDomain+path)
 	if err != nil {
 		return
 	}
@@ -87,35 +103,36 @@ func (c *punchClient) getFormDetail() (form *HealthForm, params *QueryParam, err
 		return
 	}
 
-	tmpForm := &HealthForm{}
+	tmpForm := make(map[string]string)
 
-	if err = json.Unmarshal(resData[indexHealthFormData], tmpForm); err != nil {
+	if err = json.Unmarshal(resData[indexHealthFormData], &tmpForm); err != nil {
 		return
 	}
 
-	tmpForm.DataTime = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
-
-	if err = fieldZeroValueCheck(tmpForm); err != nil {
+	if err = zeroValueCheck(tmpForm); err != nil {
 		return
 	}
+	tmpForm["DATETIME_CYCLE"] = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
 
 	form = tmpForm
 	params = &QueryParam{
 		Wid:    string(resData[indexWID]),
-		UserID: form.StudentID,
+		UserID: form["USERID"],
 	}
+
+	delete(tmpForm, "CLRQ")   // 删除填报时间字段
+	delete(tmpForm, "USERID") // 删除UserID字段
 	return
 }
 
 // postForm 提交打卡表单
-func (c *punchClient) postForm(form *HealthForm, params *QueryParam) error {
-	value, err := query.Values(form)
-	if err != nil {
-		return err
+func (c *punchClient) postForm(form map[string]string, params *QueryParam) error {
+	value := make(url.Values)
+	for key, val := range form {
+		value.Set(key, val)
 	}
 
-	var req *http.Request
-	req, err = postFormWithContext(c.ctx,
+	req, err := postFormWithContext(c.ctx,
 		"http://"+reportDomain+"/pdc/formDesignApi/dataFormSave",
 		value,
 	)
@@ -148,6 +165,9 @@ func parseData(data string, symbol htmlSymbol) (res []byte, err error) {
 		res, err = getSlice(data, '{', '}', true)
 	case symbolString:
 		res, err = getSlice(data, '\'', '\'', false)
+		if err != nil {
+			res, err = getSlice(data, '"', '"', false)
+		}
 	default:
 		err = errors.New("data: invalid symbol")
 	}
@@ -177,11 +197,13 @@ func getSlice(data string, startSymbol, endSymbol byte, containSymbol bool) ([]b
 	return res, nil
 }
 
-func fieldZeroValueCheck(item interface{}) error {
-	v := reflect.ValueOf(item).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).IsZero() {
-			return errors.New("field: '" + v.Type().Field(i).Name + "' is zero value")
+func zeroValueCheck(item map[string]string) error {
+	if len(item) == 0 {
+		return errors.New("check: the map is empty")
+	}
+	for key, value := range item {
+		if value == "" {
+			return errors.New("check: '" + key + "' has zero value")
 		}
 	}
 	return nil

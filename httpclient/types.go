@@ -12,6 +12,8 @@ type QueryParam struct {
 }
 
 // HealthForm form for post
+//
+// Deprecated: using map[string]string instead
 type HealthForm struct {
 	DataTime        string `json:"DATETIME_CYCLE" url:"DATETIME_CYCLE"` // 填报时间
 	StudentID       string `json:"XGH_336526" url:"XGH_336526"`         // 学号
