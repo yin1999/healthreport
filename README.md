@@ -55,7 +55,7 @@
 
 ### Docker
 
-应用支持Docker部署，具体使用方法请参考[yin199909/healthreport](https://hub.docker.com/repository/docker/yin199909/healthreport)
+应用支持Docker部署，具体使用方法请参考[yin199909/healthreport](https://hub.docker.com/r/yin199909/healthreport)
 
 ### Linux/Windows
 
