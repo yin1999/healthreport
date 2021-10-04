@@ -50,8 +50,8 @@ type punchClient struct {
 
 // Account account info for login
 type Account struct {
-	Username string
-	Password string
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // Name get the name of the account
