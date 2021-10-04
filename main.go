@@ -181,11 +181,11 @@ func initApp() {
 
 	if *save && fromArgs {
 		if err := storeJson(account, accountFilename); err != nil {
-			logger.Printf("account: save to file failed(Err: %s)\n", err.Error())
+			logger.Fatalf("account: save to file failed(Err: %s)\n", err.Error())
 		}
 	}
 
-	if *version || *checkEmail || *genEmailCfg {
+	if *version || *checkEmail || *genEmailCfg || *save {
 		os.Exit(0)
 	}
 }
