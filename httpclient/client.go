@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"time"
 )
@@ -13,8 +14,8 @@ var timeZone = time.FixedZone("CST", 8*3600)
 func LoginConfirm(ctx context.Context, account interface{}, timeout time.Duration) error {
 	var cc context.CancelFunc
 	ctx, cc = context.WithTimeout(ctx, timeout)
-	c := &punchClient{}
-	err := c.login(ctx, account.(*Account))
+	c := newClient(ctx)
+	err := c.login(account.(*Account))
 	cc()
 	return parseURLError(err)
 }
@@ -29,8 +30,8 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 		err = parseURLError(err)
 	}()
 
-	c := &punchClient{}
-	err = c.login(ctx, account.(*Account)) // 登录，获取cookie
+	c := newClient(ctx)
+	err = c.login(account.(*Account)) // 登录，获取cookie
 	if err != nil {
 		return
 	}
@@ -52,6 +53,15 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 
 	err = c.postForm(form, params) // 提交表单
 	return
+}
+
+func newClient(ctx context.Context) *punchClient {
+	jar := newCookieJar()
+	return &punchClient{
+		ctx:        ctx,
+		jar:        jar,
+		httpClient: &http.Client{Jar: jar},
+	}
 }
 
 // parseURLError 解析URL错误

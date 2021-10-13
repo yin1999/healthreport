@@ -22,7 +22,7 @@ func newCookieJar() customCookieJar {
 }
 
 // GetCookieByName
-func (j *cookieJar) GetCookieByName(name string) (res []*http.Cookie) {
+func (j cookieJar) GetCookieByName(name string) (res []*http.Cookie) {
 	for i := range j.cookies {
 		if j.cookies[i].Name == name {
 			res = append(res, j.cookies[i])
@@ -42,7 +42,7 @@ func (j *cookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 }
 
 // GetCookieByDomain use domain as filter to get cookies
-func (j *cookieJar) GetCookieByDomain(domain string) (res []*http.Cookie) {
+func (j cookieJar) GetCookieByDomain(domain string) (res []*http.Cookie) {
 	for i := range j.cookies {
 		if strings.HasSuffix(domain, j.cookies[i].Domain) {
 			res = append(res, j.cookies[i])

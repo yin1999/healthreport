@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"bufio"
-	"context"
 	"encoding/xml"
 	"errors"
 	"net/http"
@@ -25,17 +24,13 @@ type loginForm struct {
 }
 
 // login 登录系统
-func (c *punchClient) login(ctx context.Context, account *Account) (err error) {
+func (c *punchClient) login(account *Account) (err error) {
 	const loginURL = "https://authserver.hhu.edu.cn/authserver/login"
-	c.ctx = ctx
 	var req *http.Request
 	req, err = getWithContext(c.ctx, loginURL)
 	if err != nil {
 		return
 	}
-
-	c.jar = newCookieJar()
-	c.httpClient = &http.Client{Jar: c.jar}
 
 	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {
