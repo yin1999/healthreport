@@ -10,11 +10,11 @@
 
 目前，[最新版本](https://github.com/yin1999/healthreport/releases/latest)具有以下特性:
 
-    1. 每日自动打卡
-    2. 一次打卡失败，自动重新尝试，可设置最大打卡尝试次数
-    3. 日志同步输出到Stderr
-    4. 版本查询
-    5. 打卡失败邮件通知推送功能(目前支持STARTTLS/TLS端口+PlainAuth登录到SMTP服务器)
+	1. 每日自动打卡
+	2. 一次打卡失败，自动重新尝试，可设置最大打卡尝试次数
+	3. 日志同步输出到Stderr
+	4. 版本查询
+	5. 打卡失败邮件通知推送功能(目前支持STARTTLS/TLS端口+PlainAuth登录到SMTP服务器)
 	6. 通过环境变量设置http代理(HTTP_PROXY/HTTPS_PROXY均需设置)
 
 ## 安装教程
@@ -74,7 +74,7 @@
 	# -save: 保存账户信息至文件，第二次启动程序时可不设置用户名、密码两个参数（仅使用: ./healthreport -t 9:52）
 	```
 
-	**Linux**用户可使用`systemd`(recommend，配置模板：`_script/healthreport.service`)或者`screen`管理打卡进程
+	**Linux**用户可使用[systemd](https://systemd.io/)(`recommend`，支持配置开机自启，配置模板：`_script/healthreport.service`)或者[screen](https://www.gnu.org/software/screen/)管理打卡进程
 
 ### 邮件通知
 
