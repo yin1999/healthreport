@@ -1,13 +1,8 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -21,9 +16,6 @@ var (
 	ErrWrongFormat = errors.New("time: wrong format")
 )
 
-// Attempts 尝试次数
-type Attempts uint8
-
 // Time time config for scheduler
 type Time struct {
 	Hour   int
@@ -32,8 +24,8 @@ type Time struct {
 
 // Config config struct
 type Config struct {
-	MaxAttempts Attempts `json:"maxAttempts"`
-	PunchTime   Time     `json:"punchTime"`
+	MaxAttempts uint8 `json:"maxAttempts"`
+	PunchTime   Time  `json:"punchTime"`
 }
 
 // Printer interface
@@ -55,40 +47,8 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 		cfg.MaxAttempts = 16
 	}
 	flag.Func("c", "set maximum retry attempts when punch failed(default: 16)", func(s string) error {
-		return cfg.MaxAttempts.parse(s)
+		return parseAttempts(&cfg.MaxAttempts, s)
 	})
-}
-
-// Store write config to file
-//
-// Deprecated: please using SetFlag instead(load config from args).
-func (cfg Config) Store(path string) error {
-	dir := filepath.Dir(path)
-	err := os.MkdirAll(dir, 0744)
-	if err != nil {
-		return err
-	}
-
-	var data []byte
-	data, err = json.MarshalIndent(cfg, "", "\t")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0600)
-}
-
-// Load read config from file
-//
-// Deprecated: function Store will be removed in a future version
-func (cfg *Config) Load(path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if err = json.Unmarshal(data, cfg); err != nil {
-		return err
-	}
-	return cfg.Check()
 }
 
 // Check check config
@@ -111,75 +71,16 @@ func (cfg Config) Show(logger Printer) {
 	logger.Printf("Time set: %02d:%02d\n", cfg.PunchTime.Hour, cfg.PunchTime.Minute)
 }
 
-// GetFromStdin 从Stdin获取配置信息
-//
-// Deprecated: function Store will be removed in a future version
-func (cfg *Config) GetFromStdin() {
-	var (
-		inputString string
-		err         error
-		n           int
-	)
-
-	fmt.Print("请输入每天最大尝试打卡的次数，默认为\"16\"\n")
-	for n <= 0 || n > 120 {
-		fmt.Print("请输入(1~120):")
-		if n, err = fmt.Scanln(&inputString); err == io.EOF {
-			return
-		}
-
-		if n == 0 {
-			n = 16
-		} else {
-			n, _ = strconv.Atoi(inputString)
-		}
-	}
-	cfg.MaxAttempts = Attempts(n)
-
-	fmt.Print("请输入每天定时运行的时间，默认为当前时间\n")
-	for {
-		fmt.Print("时间(HH:MM, 00:00-23:59):")
-		if n, err = fmt.Scanln(&inputString); err == io.EOF {
-			return
-		}
-
-		if n == 0 {
-			timeNow := time.Now()
-			cfg.PunchTime.Hour = timeNow.Hour()
-			cfg.PunchTime.Minute = timeNow.Minute()
-			break
-		}
-		if err = cfg.PunchTime.UnmarshalText([]byte(inputString)); err == nil {
-			break
-		}
-	}
-}
-
-func (t *Attempts) parse(text string) (err error) {
-	var n int
-	n, err = strconv.Atoi(text)
+func parseAttempts(t *uint8, text string) (err error) {
+	var n uint64
+	n, err = strconv.ParseUint(text, 10, 8)
 	if err != nil {
 		return
 	}
-	if n < 1 || n > 120 {
+	if n == 0 || n > 120 {
 		return ErrOutOfRange
 	}
-	*t = Attempts(n)
-	return
-}
-
-// UnmarshalJSON interface of json.Unmarshal
-//
-// Deprecated: not load config from file
-func (t *Attempts) UnmarshalJSON(text []byte) error {
-	return t.parse(string(text))
-}
-
-// MarshalText interface of json.Marshal
-//
-// Deprecated: not store config to file
-func (t Time) MarshalText() (data []byte, err error) {
-	data = []byte(fmt.Sprintf("%02d:%02d", t.Hour, t.Minute))
+	*t = uint8(n)
 	return
 }
 
@@ -204,11 +105,4 @@ func (t *Time) parse(text string) error {
 	t.Hour = hour
 	t.Minute = minute
 	return err
-}
-
-// UnmarshalText interface of json.Unmarshal
-//
-// Deprecated: not load config from file
-func (t *Time) UnmarshalText(text []byte) error {
-	return t.parse(string(text))
 }
