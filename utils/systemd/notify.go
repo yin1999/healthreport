@@ -3,6 +3,7 @@ package systemd
 import (
 	"net"
 	"os"
+	"runtime"
 )
 
 const (
@@ -16,6 +17,9 @@ const (
 
 // Notify notify the init system about status changes
 func Notify(state string) error {
+	if runtime.GOOS != "linux" {
+		return nil
+	}
 	socketAddr := &net.UnixAddr{
 		Name: os.Getenv("NOTIFY_SOCKET"),
 		Net:  "unixgram",

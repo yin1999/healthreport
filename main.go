@@ -90,7 +90,7 @@ func app(ctx context.Context, ready func()) {
 	serveCfg := &serve.Config{
 		Sender:      emailCfg,
 		Logger:      logger,
-		MaxAttempts: uint8(cfg.MaxAttempts),
+		MaxAttempts: cfg.MaxAttempts,
 		Time: serve.Time{
 			Hour:     cfg.PunchTime.Hour,
 			Minute:   cfg.PunchTime.Minute,
