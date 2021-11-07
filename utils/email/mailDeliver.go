@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/smtp"
 	"os"
+	"strconv"
 	"strings"
+
+	_ "unsafe"
 )
 
 var (
@@ -71,7 +73,7 @@ func (cfg *Config) Send(nickName, subject, body string) error {
 	}
 	message := bytes.Buffer{}
 	for _, v := range header {
-		message.WriteString(fmt.Sprintf("%s: %s\r\n", v[0], v[1]))
+		message.WriteString(v[0] + ": " + v[1] + "\r\n")
 	}
 	message.WriteString("\r\n" + body)
 	auth := smtp.PlainAuth(
@@ -121,7 +123,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 func newClient(host string, port int, TLS bool) (client *smtp.Client, err error) {
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := host + ":" + strconv.Itoa(port)
 	var conn net.Conn
 	if TLS {
 		conn, err = tls.Dial("tcp",
@@ -145,11 +147,11 @@ func newClient(host string, port int, TLS bool) (client *smtp.Client, err error)
 			client = nil
 		}
 		return
-	}
-	if ok, _ := client.Extension("STARTTLS"); ok {
+	} else if ok, _ := client.Extension("STARTTLS"); ok {
 		config := &tls.Config{ServerName: host}
 		err = client.StartTLS(config)
 	}
+
 	if err != nil {
 		client.Close()
 		client = nil
@@ -200,9 +202,5 @@ func sendMail(c *smtp.Client, a smtp.Auth, from string, to []string, msg []byte)
 	return c.Quit()
 }
 
-func validateLine(line string) error {
-	if strings.ContainsAny(line, "\n\r") {
-		return errors.New("smtp: A line must not contain CR or LF")
-	}
-	return nil
-}
+//go:linkname validateLine net/smtp.validateLine
+func validateLine(line string) error

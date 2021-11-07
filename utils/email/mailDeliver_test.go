@@ -20,11 +20,10 @@ func testLoadConfig(t *testing.T) {
 	if config != nil || err == nil {
 		t.Fail()
 	}
-	config, err = LoadConfig("../email.json")
+	config, err = LoadConfig("../../email.json")
 	if config == nil || err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 func testLoginTest(t *testing.T) {
