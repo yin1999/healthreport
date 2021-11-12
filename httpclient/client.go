@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"net/url"
 	"time"
@@ -53,6 +54,11 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 
 	err = c.postForm(form, params) // 提交表单
 	return
+}
+
+// SetSslVerify when set false, insecure connection will be allowed
+func SetSslVerify(verify bool) {
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: verify}
 }
 
 func newClient(ctx context.Context) *punchClient {

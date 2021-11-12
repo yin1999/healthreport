@@ -95,9 +95,8 @@ func encryptAES(data, key string) (string, error) {
 // randBytes generate random bytes
 func randBytes(data []byte) {
 	const fill = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
-	const length = int32(len(fill))
 	for i := range data {
-		data[i] = fill[rand.Int31()%length]
+		data[i] = fill[rand.Int31()%int32(len(fill))]
 	}
 }
 
