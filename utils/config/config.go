@@ -52,6 +52,8 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 }
 
 // Check check config
+//
+// Deprecated: use SetFlag to initialize config
 func (cfg Config) Check() error {
 	if cfg.MaxAttempts <= 0 || cfg.MaxAttempts > 120 {
 		return ErrOutOfRange
