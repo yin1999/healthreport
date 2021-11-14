@@ -25,7 +25,7 @@ const (
 	symbolString
 )
 
-const reportDomain = "form.hhu.edu.cn"
+const reportDomain = "dailyreport.hhu.edu.cn"
 
 var (
 	prefixArray = [...]string{"var _selfFormWid", "fillDetail"}
