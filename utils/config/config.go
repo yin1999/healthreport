@@ -41,13 +41,19 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 		cfg.PunchTime.Minute = now.Minute()
 	}
 	flag.Func("t", "set punch time(default: now)", func(s string) error {
-		return cfg.PunchTime.parse(s)
+		if s != "" {
+			return cfg.PunchTime.parse(s)
+		}
+		return nil
 	})
 	if cfg.MaxAttempts == 0 {
 		cfg.MaxAttempts = 16
 	}
 	flag.Func("c", "set maximum retry attempts when punch failed(default: 16)", func(s string) error {
-		return parseAttempts(&cfg.MaxAttempts, s)
+		if s != "" {
+			return parseAttempts(&cfg.MaxAttempts, s)
+		}
+		return nil
 	})
 }
 

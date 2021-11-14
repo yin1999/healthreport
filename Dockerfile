@@ -15,4 +15,4 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 
 VOLUME ["/run/secrets"]
 
-CMD ["sh", "-c", "healthreport -u=${username} -p=${password} -account=/run/secrets/account.json -email=/run/secrets/email.json"]
+CMD ["sh", "-c", "healthreport -u=${username} -p=${password} -t=${time} -c=${attempts} -account=/run/secrets/account.json -email=/run/secrets/email.json"]
