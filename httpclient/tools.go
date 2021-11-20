@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 )
@@ -46,16 +47,6 @@ func getWithContext(ctx context.Context, url string) (*http.Request, error) {
 	}
 	req.Header = generalHeaders.Clone()
 	return req, err
-}
-
-var isAsciiSpace = [256]bool{'\t': true, '\n': true, '\v': true, '\f': true, '\r': true, ' ': true}
-
-func trimLeadingSpace(data []byte) []byte {
-	start := 0
-	for start < len(data) && isAsciiSpace[data[start]] {
-		start++
-	}
-	return data[start:]
 }
 
 func getResponseN(n int) func(req *http.Request, via []*http.Request) error {
@@ -103,7 +94,7 @@ func randBytes(data []byte) {
 // scanLine scan a line
 func scanLine(reader *bufio.Reader) (string, error) {
 	data, isPrefix, err := reader.ReadLine() // data is not a copy, use it carefully
-	res := string(trimLeadingSpace(data))    // copy the data to string(remove the leading space)
+	res := string(textproto.TrimBytes(data)) // copy the data to string(remove the leading and trailing space)
 	for isPrefix {                           // discard the remaining runes in the line
 		_, isPrefix, err = reader.ReadLine()
 	}
