@@ -123,7 +123,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 func newClient(host string, port int, TLS bool) (client *smtp.Client, err error) {
-	addr := host + ":" + strconv.Itoa(port)
+	addr := host + ":" + strconv.FormatInt(int64(port), 10)
 	var conn net.Conn
 	if TLS {
 		conn, err = tls.Dial("tcp",
@@ -142,14 +142,9 @@ func newClient(host string, port int, TLS bool) (client *smtp.Client, err error)
 		return
 	}
 	if TLS {
-		if err = client.Hello("localhost"); err != nil {
-			client.Close()
-			client = nil
-		}
-		return
+		err = client.Hello("localhost")
 	} else if ok, _ := client.Extension("STARTTLS"); ok {
-		config := &tls.Config{ServerName: host}
-		err = client.StartTLS(config)
+		err = client.StartTLS(&tls.Config{ServerName: host})
 	}
 
 	if err != nil {
