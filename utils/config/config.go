@@ -40,7 +40,7 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 		cfg.PunchTime.Hour = now.Hour()
 		cfg.PunchTime.Minute = now.Minute()
 	}
-	flag.Func("t", "set punch time(default: now)", func(s string) error {
+	flag.Func("t", "set punch time(format: HH:MM, default: now)", func(s string) error {
 		if s != "" {
 			return cfg.PunchTime.parse(s)
 		}

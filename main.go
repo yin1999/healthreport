@@ -127,7 +127,7 @@ func initApp() {
 	version := flagSet.Bool("v", false, "show version and exit")
 	checkEmail := flagSet.Bool("e", false, "check email")
 	genEmailCfg := flagSet.Bool("g", false, "generate email config")
-	save := flagSet.Bool("save", false, "whether save config to file")
+	save := flagSet.Bool("save", false, "save account info to file")
 	insecure := flagSet.Bool("k", false, "allow insecure server connections when using SSL")
 
 	flagSet.StringVar(&account.Username, "u", "", "set username")
