@@ -7,5 +7,5 @@ dep:
 
 build:
 	@echo Building...
-	@go run _script/make.go -GOOS="${TARGET}" -version="${VERSION}"
+	@go run _script/make.go -goos="${TARGET}" -version="${VERSION}" -goarch="${ARCH}" -goarm="${ARM}"
 	@echo Done.

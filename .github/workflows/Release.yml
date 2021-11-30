@@ -2,38 +2,104 @@ name: Release
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      VERSION:
-        description: 'version(vX.Y.Z) to release'
-        required: true
-        default: 'v'
-      MESSAGE:
-        description: 'message for release body'
-      GoVersion:
-        description: >
-          Go version(X.Y.Z) for build
-          default: latest go version
-
-env:
-  MESSAGE: ${{ github.event.inputs.MESSAGE }}
-  VERSION: ${{ github.event.inputs.VERSION }}
-  GoVersion: ${{ github.event.inputs.GoVersion }}
 
 jobs:
-  release:
-    name: Release on GitHub
+  init:
+    name: init
+    runs-on: ubuntu-latest
+    outputs:
+      GoVersion: ${{ steps.step1.outputs.GoVersion }}
+    steps:
+    - id: step1
+      name: Set GoVersion
+      run: |
+        GoVersion=${{ github.event.inputs.GoVersion }}
+        if [ -z "${GoVersion}" ]; then
+          GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')
+        fi
+        echo "::set-output name=GoVersion::${GoVersion}"
+
+  build:
+    name: Build and Upload
+    needs: [init]
+    strategy:
+      matrix:
+        # Include amd64 on all platforms.
+        goos: [windows, freebsd, openbsd, linux, dragonfly, darwin]
+        goarch: [amd64, 386]
+        exclude:
+          # Exclude i386 on darwin and dragonfly.
+          - goarch: 386
+            goos: dragonfly
+          - goarch: 386
+            goos: darwin
+        include:
+          # BEGIN Linux ARM 5 6 7
+          - goos: linux
+            goarch: arm
+            goarm: 7
+          - goos: linux
+            goarch: arm
+            goarm: 6
+          - goos: linux
+            goarch: arm
+            goarm: 5
+          # END Linux ARM 5 6 7
+          # BEGIN Windows ARM 7
+          - goos: windows
+            goarch: arm
+            goarm: 7
+          # END Windows ARM 7
+          # BEGIN FreeBSD ARM 6 7
+          - goos: freebsd
+            goarch: arm
+            goarm: 6
+          - goos: freebsd
+            goarch: arm
+            goarm: 7
+          # END FreeBSD ARM 6 7
+          # BEGIN OpenBSD ARM 6 7
+          - goos: openbsd
+            goarch: arm
+            goarm: 6
+          - goos: openbsd
+            goarch: arm
+            goarm: 7
+          # END OpenBSD ARM 6 7
+          # BEGIN Other architectures
+          - goos: darwin
+            goarch: arm64
+          - goos: linux
+            goarch: arm64
+          - goos: linux
+            goarch: riscv64
+          - goos: windows
+            goarch: arm64
+          - goos: android
+            goarch: arm64
+          - goos: freebsd
+            goarch: arm64
+          - goos: openbsd
+            goarch: arm64
+          # BEGIN MIPS
+          - goos: linux
+            goarch: mips64
+          - goos: linux
+            goarch: mips64le
+          - goos: linux
+            goarch: mipsle
+          - goos: linux
+            goarch: mips
+          # END MIPS
+          # END Other architectures
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
-    - name: Set GoVersion
-      if: env.GoVersion == ''
+    - name: Show workflow info
       run: |
-        echo "GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')" >> ${GITHUB_ENV}
-
-    - name: Set ENV for 'Create Tag'
-      if: startsWith(github.ref, 'refs/tags/')
-      run: |
-        echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> ${GITHUB_ENV}
+        assertName="${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goarm }}"
+        echo "GOOS: ${{ matrix.goos }} GOARCH: ${{ matrix.goarch }} GOARM: ${{ matrix.goarm }}"
+        echo "ASSERT=${assertName}" >> ${GITHUB_ENV}
 
     - name: Check out code
       uses: actions/checkout@v2
@@ -41,29 +107,24 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ env.GoVersion }}
+        go-version: ${{ needs.init.outputs.GoVersion }}
 
     - name: Dep
       run: make dep
 
     - name: Build
       run: |
-        make build VERSION=${{ env.VERSION }} TARGET=linux
-        make build VERSION=${{ env.VERSION }} TARGET=windows
-
-    - name: Create Release
-      if: github.event_name != 'release'
-      run: |
-        gh release create ${{ env.VERSION }} -n "${{ env.MESSAGE }}" -t "${{ env.name }}"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # attribute
-        name: 健康打卡${{ env.VERSION }}
+        make build VERSION=${{ needs.init.outputs.VERSION }} TARGET=${{ matrix.goos }} ARCH=${{ matrix.goarch }} ARM=${{ matrix.goarm }}
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          mv healthreport.exe healthreport-${{ env.ASSERT }}.exe
+        else
+          mv healthreport healthreport-${{ env.ASSERT }}
+        fi
 
     - name: Upload Assets
       run: |
-        gh release upload ${{ env.VERSION }} ${{ env.files }} --clobber
+        gh release upload ${GITHUB_REF/refs\/tags\//} ${{ env.files }} --clobber
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # attribute
-        files: healthreport healthreport.exe
+        files: healthreport*

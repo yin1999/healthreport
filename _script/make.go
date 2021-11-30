@@ -14,7 +14,7 @@ var (
 )
 
 func main() {
-	ldflags := fmt.Sprintf("-s -w -X 'main.BuildTime=%s' -X 'main.ProgramCommitID=%s' -X 'main.ProgramVersion=%s'",
+	ldflags := fmt.Sprintf("-s -w -X 'main.BuildTime=%s' -X 'main.ProgramCommitID=%s' -X 'main.ProgramVersion=%s' -buildid=",
 		getBuildTime(),
 		getCommitID(),
 		getVersion(),
@@ -22,6 +22,7 @@ func main() {
 
 	cmd := exec.Command("go",
 		"build",
+		"-trimpath",
 		"-ldflags",
 		ldflags,
 	)
@@ -35,7 +36,9 @@ func main() {
 
 func init() {
 	flag.StringVar(&version, "version", "", "set as `ProgramVersion` while not empty")
-	flag.Func("GOOS", "set as env:`GOOS` while not empty", setGOOS)
+	flag.Func("goos", "set as env:`GOOS` while not empty", setGOOS)
+	flag.Func("goarm", "set as env:`GOARM` while not empty", setGOARM)
+	flag.Func("goarch", "set as env:`GOARCH` while not empty", setGOARCH)
 
 	flag.Parse()
 }
@@ -45,6 +48,20 @@ func setGOOS(goos string) error {
 		return nil
 	}
 	return os.Setenv("GOOS", goos)
+}
+
+func setGOARM(goarm string) error {
+	if goarm == "" {
+		return nil
+	}
+	return os.Setenv("GOARM", goarm)
+}
+
+func setGOARCH(goarch string) error {
+	if goarch == "" {
+		return nil
+	}
+	return os.Setenv("GOARCH", goarch)
 }
 
 // getBuildTime get UTC time with "+%F-%Z/%T" format
