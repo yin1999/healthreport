@@ -85,7 +85,7 @@ func (c *punchClient) login(account *Account) (err error) {
 		return
 	}
 
-	c.httpClient.CheckRedirect = getResponseN(1)
+	c.httpClient.CheckRedirect = notRedirect
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
@@ -95,6 +95,24 @@ func (c *punchClient) login(account *Account) (err error) {
 	if c.jar.GetCookieByName("iPlanetDirectoryPro") == nil {
 		err = CookieNotFoundErr{"iPlanetDirectoryPro"}
 	}
+	return
+}
+
+func (c *punchClient) logout() (err error) {
+	const logoutURL = "http://authserver.hhu.edu.cn/authserver/logout"
+	if err = c.ctx.Err(); err != nil {
+		return
+	}
+	req, err := getWithContext(c.ctx, logoutURL)
+	if err != nil {
+		return
+	}
+	c.httpClient.CheckRedirect = notRedirect // not redirect
+	res, err := c.httpClient.Do(req)
+	if err != nil {
+		return
+	}
+	drainBody(res.Body)
 	return
 }
 

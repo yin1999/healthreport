@@ -105,7 +105,7 @@ func (cfg Config) PunchRoutine(ctx context.Context, account Account, done chan s
 		case context.Canceled:
 			return
 		default:
-			cfg.Logger.Printf("Tried %d times. Retry after %v\n", punchCount, cfg.RetryAfter)
+			cfg.Logger.Printf("Tried %d times, retry after %v, err: %s\n", punchCount, cfg.RetryAfter, err.Error())
 		}
 
 		// waiting

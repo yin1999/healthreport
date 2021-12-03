@@ -17,6 +17,9 @@ func LoginConfirm(ctx context.Context, account interface{}, timeout time.Duratio
 	ctx, cc = context.WithTimeout(ctx, timeout)
 	c := newClient(ctx)
 	err := c.login(account.(*Account))
+	if err == nil {
+		c.logout()
+	}
 	cc()
 	return parseURLError(err)
 }
@@ -36,6 +39,7 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 	if err != nil {
 		return
 	}
+	defer c.logout()
 
 	var path string
 	path, err = c.getFormSessionID() // 获取打卡系统的cookie
