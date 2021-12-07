@@ -13,10 +13,7 @@ jobs:
     - id: step1
       name: Set GoVersion
       run: |
-        GoVersion=${{ github.event.inputs.GoVersion }}
-        if [ -z "${GoVersion}" ]; then
-          GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')
-        fi
+        GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')
         echo "::set-output name=GoVersion::${GoVersion}"
 
   build:
@@ -114,7 +111,7 @@ jobs:
 
     - name: Build
       run: |
-        make build VERSION=${{ needs.init.outputs.VERSION }} TARGET=${{ matrix.goos }} ARCH=${{ matrix.goarch }} ARM=${{ matrix.goarm }}
+        make build TARGET=${{ matrix.goos }} ARCH=${{ matrix.goarch }} ARM=${{ matrix.goarm }}
         if [ "${{ matrix.goos }}" = "windows" ]; then
           mv healthreport.exe healthreport-${{ env.ASSERT }}.exe
         else
