@@ -70,14 +70,13 @@ func (cfg Config) PunchServe(ctx context.Context, account Account) error {
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 
 	timer := time.NewTimer(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
-	c := make(chan struct{})
 	for {
-		go cfg.PunchRoutine(ctx, account, c)
-
+		err := cfg.punch(ctx, account)
+		if err != nil {
+			return err
+		}
 		select {
 		case <-timer.C:
-		case <-c:
-			return ErrMaximumAttemptsExceeded
 		case <-ctx.Done():
 			timer.Stop()
 			return ctx.Err()
@@ -87,10 +86,9 @@ func (cfg Config) PunchServe(ctx context.Context, account Account) error {
 	}
 }
 
-// PunchRoutine punch until successed or max attempts reached
-func (cfg Config) PunchRoutine(ctx context.Context, account Account, done chan struct{}) {
+// punch keep trying until successed or max attempts reached
+func (cfg *Config) punch(ctx context.Context, account Account) (err error) {
 	cfg.Logger.Print("Start punch routine\n")
-	var err error
 
 	var timer *time.Timer
 	for punchCount := uint8(1); punchCount <= cfg.MaxAttempts; punchCount++ {
@@ -118,18 +116,18 @@ func (cfg Config) PunchRoutine(ctx context.Context, account Account, done chan s
 		case <-timer.C: // try again after cfg.RetryAfter.
 		case <-ctx.Done():
 			timer.Stop()
-			return
+			return ctx.Err()
 		}
 	}
 	// error handling
 	if cfg.Sender != nil {
 		e := cfg.Sender.Send(cfg.MailNickName,
 			fmt.Sprintf("打卡状态推送-%s", time.Now().In(cfg.Time.TimeZone).Format("2006-01-02")),
-			fmt.Sprintf("账户：%s 打卡失败(err: %s)", account.Name(), err.Error()))
+			fmt.Sprintf("账户: %s 打卡失败(err: %s)", account.Name(), err.Error()))
 		if e != nil {
 			cfg.Logger.Printf("Send message failed, err: %s\n", e.Error())
 		}
 	}
 	cfg.Logger.Printf("Maximum attempts: %d reached. Last error: %s\n", cfg.MaxAttempts, err.Error())
-	close(done)
+	return ErrMaximumAttemptsExceeded
 }
