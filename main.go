@@ -212,5 +212,6 @@ func storeJson(v interface{}, name string) error {
 	defer f.Close()
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "\t")
+	enc.SetEscapeHTML(false)
 	return enc.Encode(v)
 }
