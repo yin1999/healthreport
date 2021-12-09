@@ -6,52 +6,46 @@ import (
 	"strings"
 )
 
-type customCookieJar interface {
-	http.CookieJar
-	GetCookieByDomain(domain string) []*http.Cookie
-	GetCookieByName(name string) []*http.Cookie
-}
+type cookieJar []*http.Cookie
 
-type cookieJar struct {
-	cookies []*http.Cookie
-}
+var _ http.CookieJar = &cookieJar{} // implement http.CookieJar
 
 // newCookieJar return a cookiejar
-func newCookieJar() customCookieJar {
+func newCookieJar() *cookieJar {
 	return &cookieJar{}
 }
 
-// GetCookieByName
-func (j cookieJar) GetCookieByName(name string) (res []*http.Cookie) {
-	for i := range j.cookies {
-		if j.cookies[i].Name == name {
-			res = append(res, j.cookies[i])
+// getCookieByName
+func (cookies cookieJar) getCookieByName(name string) (res []*http.Cookie) {
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			res = append(res, cookie)
 		}
 	}
 	return
 }
 
 // SetCookies set cookies to cookie storage
-func (j *cookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
-	for i := range cookies {
-		if cookies[i].Domain == "" { // if cookie.Domain is empty, using host instead
-			cookies[i].Domain = u.Hostname()
+func (cookies *cookieJar) SetCookies(u *url.URL, newCookies []*http.Cookie) {
+	for _, cookie := range newCookies {
+		if cookie.Domain == "" { // if cookie.Domain is empty, using host instead
+			cookie.Domain = u.Hostname()
 		}
-		j.cookies = append(j.cookies, cookies[i])
+		*cookies = append(*cookies, cookie)
 	}
 }
 
-// GetCookieByDomain use domain as filter to get cookies
-func (j cookieJar) GetCookieByDomain(domain string) (res []*http.Cookie) {
-	for i := range j.cookies {
-		if strings.HasSuffix(domain, j.cookies[i].Domain) {
-			res = append(res, j.cookies[i])
+// getCookieByDomain use domain as filter to get cookies
+func (cookies cookieJar) getCookieByDomain(domain string) (res []*http.Cookie) {
+	for _, cookie := range cookies {
+		if strings.HasSuffix(domain, cookie.Domain) {
+			res = append(res, cookie)
 		}
 	}
 	return
 }
 
 // Cookies get cookie by domains
-func (j *cookieJar) Cookies(u *url.URL) []*http.Cookie {
-	return j.GetCookieByDomain(u.Hostname())
+func (j cookieJar) Cookies(u *url.URL) []*http.Cookie {
+	return j.getCookieByDomain(u.Hostname())
 }

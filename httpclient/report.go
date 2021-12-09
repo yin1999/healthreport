@@ -60,7 +60,7 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 		path = string(data)
 	}
 
-	if c.jar.GetCookieByDomain(reportDomain) == nil && err == nil {
+	if c.jar.getCookieByDomain(reportDomain) == nil && err == nil {
 		err = CookieNotFoundErr{"JSESSIONID"}
 	}
 	if err != nil {

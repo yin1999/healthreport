@@ -92,7 +92,7 @@ func (c *punchClient) login(account *Account) (err error) {
 	c.httpClient.CheckRedirect = nil
 	drainBody(res.Body)
 
-	if c.jar.GetCookieByName("iPlanetDirectoryPro") == nil {
+	if c.jar.getCookieByName("iPlanetDirectoryPro") == nil {
 		err = CookieNotFoundErr{"iPlanetDirectoryPro"}
 	}
 	return

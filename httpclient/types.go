@@ -23,7 +23,7 @@ func (t CookieNotFoundErr) Error() string {
 type punchClient struct {
 	ctx        context.Context
 	httpClient *http.Client
-	jar        customCookieJar
+	jar        *cookieJar
 }
 
 // Account account info for login
