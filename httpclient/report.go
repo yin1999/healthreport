@@ -12,11 +12,8 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
-// index for resData
-const (
-	indexWID uint8 = iota
-	indexHealthFormData
-)
+// ErrCouldNotGetFormSessionID get form session id failed
+var ErrCouldNotGetFormSession = errors.New("could not get form session")
 
 type htmlSymbol uint8
 
@@ -28,10 +25,10 @@ const (
 const reportDomain = "dailyreport.hhu.edu.cn"
 
 var (
-	prefixArray = [...]string{"var _selfFormWid", "fillDetail"}
-	symbolArray = [...]htmlSymbol{symbolString, symbolJSON}
 	//ErrCannotParseData cannot parse html data error
 	ErrCannotParseData = errors.New("data: parse error")
+
+	timeZone = time.FixedZone("CST", 8*3600)
 )
 
 // getFormSessionID 获取打卡系统的SessionID
@@ -60,8 +57,8 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 		path = string(data)
 	}
 
-	if c.jar.getCookieByDomain(reportDomain) == nil && err == nil {
-		err = CookieNotFoundErr{"JSESSIONID"}
+	if err == nil && c.httpClient.Jar.Cookies(&url.URL{Host: reportDomain}) == nil {
+		err = ErrCouldNotGetFormSession
 	}
 	if err != nil {
 		path = ""
@@ -83,29 +80,33 @@ func (c *punchClient) getFormDetail(path string) (form map[string]string, params
 	}
 
 	var (
-		bufferReader = bufio.NewReader(res.Body)
-		resData      [2][]byte // wid, healthFormData
-		index        = 0
-		line         string
+		bufferReader  = bufio.NewReader(res.Body)
+		wid, formData []byte
+		line          string
 	)
 
-	for err == nil && index != 2 {
+	for err == nil {
 		line, err = scanLine(bufferReader)
-		if strings.HasPrefix(line, prefixArray[index]) {
-			resData[index], err = parseData(line, symbolArray[index])
-			index++
+		if strings.HasPrefix(line, "var _selfFormWid") {
+			wid, err = parseData(line, symbolString)
+			break
+		}
+	}
+	for err == nil {
+		line, err = scanLine(bufferReader)
+		if strings.HasPrefix(line, "fillDetail") {
+			formData, err = parseData(line, symbolJSON)
+			break
 		}
 	}
 	drainBody(res.Body)
 
-	if err != nil || index != 2 {
-		err = ErrCannotParseData
+	if err != nil {
 		return
 	}
 
 	tmpForm := make(map[string]string)
-
-	if err = json.Unmarshal(resData[indexHealthFormData], &tmpForm); err != nil {
+	if err = json.Unmarshal(formData, &tmpForm); err != nil {
 		return
 	}
 
@@ -116,7 +117,7 @@ func (c *punchClient) getFormDetail(path string) (form map[string]string, params
 
 	form = tmpForm
 	params = &QueryParam{
-		Wid:    string(resData[indexWID]),
+		Wid:    string(wid),
 		UserID: form["USERID"],
 	}
 
@@ -127,7 +128,7 @@ func (c *punchClient) getFormDetail(path string) (form map[string]string, params
 
 // postForm 提交打卡表单
 func (c *punchClient) postForm(form map[string]string, params *QueryParam) error {
-	value := make(url.Values)
+	value := make(url.Values, len(form))
 	for key, val := range form {
 		value.Set(key, val)
 	}

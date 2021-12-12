@@ -12,6 +12,9 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
+// ErrCouldNotLogin login failed
+var ErrCouldNotLogin = errors.New("could not login")
+
 type loginForm struct {
 	Username   string `url:"username"`
 	Password   string `url:"password"`
@@ -92,8 +95,8 @@ func (c *punchClient) login(account *Account) (err error) {
 	c.httpClient.CheckRedirect = nil
 	drainBody(res.Body)
 
-	if c.jar.getCookieByName("iPlanetDirectoryPro") == nil {
-		err = CookieNotFoundErr{"iPlanetDirectoryPro"}
+	if res.StatusCode != http.StatusFound { // redirect after login success
+		err = ErrCouldNotLogin
 	}
 	return
 }

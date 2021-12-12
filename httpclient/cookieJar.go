@@ -15,16 +15,6 @@ func newCookieJar() *cookieJar {
 	return &cookieJar{}
 }
 
-// getCookieByName
-func (cookies cookieJar) getCookieByName(name string) (res []*http.Cookie) {
-	for _, cookie := range cookies {
-		if cookie.Name == name {
-			res = append(res, cookie)
-		}
-	}
-	return
-}
-
 // SetCookies set cookies to cookie storage
 func (cookies *cookieJar) SetCookies(u *url.URL, newCookies []*http.Cookie) {
 	for _, cookie := range newCookies {
@@ -35,17 +25,13 @@ func (cookies *cookieJar) SetCookies(u *url.URL, newCookies []*http.Cookie) {
 	}
 }
 
-// getCookieByDomain use domain as filter to get cookies
-func (cookies cookieJar) getCookieByDomain(domain string) (res []*http.Cookie) {
+// Cookies get cookie by domains
+func (cookies cookieJar) Cookies(u *url.URL) (res []*http.Cookie) {
+	domain := u.Hostname()
 	for _, cookie := range cookies {
 		if strings.HasSuffix(domain, cookie.Domain) {
 			res = append(res, cookie)
 		}
 	}
 	return
-}
-
-// Cookies get cookie by domains
-func (j cookieJar) Cookies(u *url.URL) []*http.Cookie {
-	return j.getCookieByDomain(u.Hostname())
 }

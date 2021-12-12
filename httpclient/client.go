@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-// timeZone is used for set DataTime in HealthForm
-var timeZone = time.FixedZone("CST", 8*3600)
-
 // LoginConfirm 验证账号密码
 func LoginConfirm(ctx context.Context, account interface{}, timeout time.Duration) error {
 	var cc context.CancelFunc
@@ -66,11 +63,9 @@ func SetSslVerify(verify bool) {
 }
 
 func newClient(ctx context.Context) *punchClient {
-	jar := newCookieJar()
 	return &punchClient{
 		ctx:        ctx,
-		jar:        jar,
-		httpClient: &http.Client{Jar: jar},
+		httpClient: &http.Client{Jar: newCookieJar()},
 	}
 }
 
