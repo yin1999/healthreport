@@ -59,7 +59,7 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 
 // SetSslVerify when set false, insecure connection will be allowed
 func SetSslVerify(verify bool) {
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: verify}
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: !verify}
 }
 
 func newClient(ctx context.Context) *punchClient {
