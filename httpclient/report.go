@@ -22,7 +22,18 @@ const (
 	symbolString
 )
 
-const reportDomain = "dailyreport.hhu.edu.cn"
+const reportDomains = "dailyreport.hhu.edu.cnform.hhu.edu.cn"
+
+var reportDomain = reportDomains[:22]
+
+// SetPunchSite when set true, the old punch site will be used
+func SetPunchSite(old bool) {
+	if old {
+		reportDomain = reportDomains[22:]
+	} else {
+		reportDomain = reportDomains[:22]
+	}
+}
 
 var (
 	//ErrCannotParseData cannot parse html data error
