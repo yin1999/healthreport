@@ -129,7 +129,6 @@ func initApp() {
 	genEmailCfg := flagSet.Bool("g", false, "generate email config")
 	save := flagSet.Bool("save", false, "save account info to file")
 	insecure := flagSet.Bool("k", false, "allow insecure server connections when using SSL")
-	oldPunchSite := flagSet.Bool("old", false, "switch to using old punch site(form.hhu.edu.cn)")
 
 	flagSet.StringVar(&account.Username, "u", "", "set username")
 	flagSet.StringVar(&account.Password, "p", "", "set password")
@@ -193,9 +192,6 @@ func initApp() {
 
 	if *insecure {
 		client.SetSslVerify(false)
-	}
-	if *oldPunchSite {
-		client.SetPunchSite(true)
 	}
 }
 
