@@ -12,8 +12,12 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
-// ErrCouldNotLogin login failed
-var ErrCouldNotLogin = errors.New("could not login")
+var (
+	// ErrCouldNotLogin login failed
+	ErrCouldNotLogin = errors.New("could not login")
+	// ErrNeedCaptcha
+	ErrNeedCaptcha = errors.New("login: need captcha")
+)
 
 type loginForm struct {
 	Username   string `url:"username"`
@@ -28,14 +32,33 @@ type loginForm struct {
 
 // login 登录系统
 func (c *punchClient) login(account *Account) (err error) {
-	const loginURL = "https://authserver.hhu.edu.cn/authserver/login"
 	var req *http.Request
+	req, err = getWithContext(c.ctx, "https://authserver.hhu.edu.cn/authserver/needCaptcha.html")
+	if err != nil {
+		return
+	}
+	q := url.Values{
+		"username":    []string{account.Username},
+		"pwdEncrypt2": []string{"pwdEncryptSalt"},
+	}
+	req.URL.RawQuery = q.Encode()
+	var res *http.Response
+	if res, err = c.httpClient.Do(req); err != nil {
+		return
+	}
+	d := make([]byte, 4) // only read for "true"
+	res.Body.Read(d)
+	drainBody(res.Body)
+	if string(d) == "true" {
+		err = ErrNeedCaptcha
+		return
+	}
+	const loginURL = "https://authserver.hhu.edu.cn/authserver/login"
 	req, err = getWithContext(c.ctx, loginURL)
 	if err != nil {
 		return
 	}
 
-	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
