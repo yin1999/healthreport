@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
-// ErrCouldNotGetFormSessionID get form session id failed
+// ErrCouldNotGetFormSession get form session id failed
 var ErrCouldNotGetFormSession = errors.New("could not get form session")
 
 type htmlSymbol uint8
