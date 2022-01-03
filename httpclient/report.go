@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -43,25 +44,25 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
+	defer drainBody(res.Body)
+
+	if c.httpClient.Jar.Cookies(&url.URL{Host: c.site}) == nil {
+		err = ErrCouldNotGetFormSession
+		return
+	}
 
 	bufferReader := bufio.NewReader(res.Body)
 
 	for err == nil && !strings.HasPrefix(path, `<a href="/pdc/formDesignApi/S/`) {
 		path, err = scanLine(bufferReader)
 	}
-	drainBody(res.Body)
 
 	if path != "" {
 		var data []byte
 		data, err = parseData(path, symbolString)
 		path = string(data)
-	}
-
-	if err == nil && c.httpClient.Jar.Cookies(&url.URL{Host: c.site}) == nil {
-		err = ErrCouldNotGetFormSession
-	}
-	if err != nil {
-		path = ""
+	} else {
+		err = fmt.Errorf("get form url failed, err: %w", err)
 	}
 	return
 }
@@ -102,6 +103,7 @@ func (c *punchClient) getFormDetail(path string) (form map[string]string, params
 	drainBody(res.Body)
 
 	if err != nil {
+		err = fmt.Errorf("get form data failed, err: %w", err)
 		return
 	}
 
