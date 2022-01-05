@@ -14,7 +14,6 @@ type QueryParam struct {
 type punchClient struct {
 	ctx        context.Context
 	httpClient *http.Client
-	site       string
 }
 
 // Account account info for login

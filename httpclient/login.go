@@ -122,13 +122,6 @@ func (c *punchClient) login(account *Account) (err error) {
 		err = ErrCouldNotLogin
 		return
 	}
-	// detect to using old site only
-	loc, _ := res.Location()
-	if loc.Path == "/authserver/improveInfo.do" { // must using old site
-		c.site = reportDomains[22:]
-	} else {
-		c.site = reportDomains[:22]
-	}
 	return
 }
 

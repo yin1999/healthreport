@@ -23,7 +23,7 @@ const (
 	symbolString
 )
 
-const reportDomains = "dailyreport.hhu.edu.cnform.hhu.edu.cn"
+const reportDomain = "form.hhu.edu.cn"
 
 var (
 	//ErrCannotParseData cannot parse html data error
@@ -35,7 +35,7 @@ var (
 // getFormSessionID 获取打卡系统的SessionID
 func (c *punchClient) getFormSessionID() (path string, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, "http://"+c.site+"/pdc/form/list")
+	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/form/list")
 	if err != nil {
 		return
 	}
@@ -46,7 +46,7 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 	}
 	defer drainBody(res.Body)
 
-	if c.httpClient.Jar.Cookies(&url.URL{Host: c.site}) == nil {
+	if c.httpClient.Jar.Cookies(&url.URL{Host: reportDomain}) == nil {
 		err = ErrCouldNotGetFormSession
 		return
 	}
@@ -70,7 +70,7 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 // getFormDetail 获取打卡表单详细信息
 func (c *punchClient) getFormDetail(path string) (form map[string]string, params *QueryParam, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, "http://"+c.site+path)
+	req, err = getWithContext(c.ctx, "http://"+reportDomain+path)
 	if err != nil {
 		return
 	}
@@ -136,7 +136,7 @@ func (c *punchClient) postForm(form map[string]string, params *QueryParam) error
 	}
 
 	req, err := postFormWithContext(c.ctx,
-		"http://"+c.site+"/pdc/formDesignApi/dataFormSave",
+		"http://"+reportDomain+"/pdc/formDesignApi/dataFormSave",
 		value,
 	)
 	if err != nil {
