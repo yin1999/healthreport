@@ -2,7 +2,6 @@ package serve
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -44,9 +43,6 @@ type Account interface {
 	Name() string
 }
 
-// ErrMaximumAttemptsExceeded reached the maximum attempts to punch
-var ErrMaximumAttemptsExceeded = errors.New("serve: maximum attempts exceeded")
-
 // PunchServe universal punch service.
 // When it is called, it will call the punch function immediately,
 // and then call the punch function daily.
@@ -71,10 +67,12 @@ func (cfg Config) PunchServe(ctx context.Context, account Account) error {
 
 	timer := time.NewTimer(time.Until(nextTime) + time.Duration(r.Int63())%(time.Minute*10))
 	for {
-		err := cfg.punch(ctx, account)
-		if err != nil {
+		cfg.Logger.Print("Start punch routine\n")
+		if err := cfg.punch(ctx, account); err != nil {
 			return err
 		}
+		cfg.Logger.Print("Punch finished\n")
+
 		select {
 		case <-timer.C:
 		case <-ctx.Done():
@@ -88,23 +86,20 @@ func (cfg Config) PunchServe(ctx context.Context, account Account) error {
 
 // punch keep trying until successed or max attempts reached
 func (cfg *Config) punch(ctx context.Context, account Account) (err error) {
-	cfg.Logger.Print("Start punch routine\n")
-
 	var timer *time.Timer
-	for punchCount := uint8(1); punchCount <= cfg.MaxAttempts; punchCount++ {
+	for punchCount := uint8(1); true; punchCount++ {
 		cfg.Logger.Print("Start punch\n")
 		err = cfg.PunchFunc(ctx, account, cfg.Timeout)
 
 		// error handling
-		switch err {
-		case nil:
-			cfg.Logger.Print("Punch finished\n")
+		if err == nil || err == context.Canceled {
 			return
-		case context.Canceled:
-			return
-		default:
-			cfg.Logger.Printf("Tried %d times, retry after %v, err: %s\n", punchCount, cfg.RetryAfter, err.Error())
 		}
+
+		if punchCount >= cfg.MaxAttempts {
+			break
+		}
+		cfg.Logger.Printf("Tried %d times, retry after %v, err: %s\n", punchCount, cfg.RetryAfter, err.Error())
 
 		// waiting
 		if timer == nil {
@@ -121,13 +116,12 @@ func (cfg *Config) punch(ctx context.Context, account Account) (err error) {
 	}
 	// error handling
 	if cfg.Sender != nil {
-		e := cfg.Sender.Send(cfg.MailNickName,
+		err := cfg.Sender.Send(cfg.MailNickName,
 			fmt.Sprintf("打卡状态推送-%s", time.Now().In(cfg.Time.TimeZone).Format("2006-01-02")),
 			fmt.Sprintf("账户: %s 打卡失败(err: %s)", account.Name(), err.Error()))
-		if e != nil {
-			cfg.Logger.Printf("Send message failed, err: %s\n", e.Error())
+		if err != nil {
+			cfg.Logger.Printf("Send message failed, err: %s\n", err.Error())
 		}
 	}
-	cfg.Logger.Printf("Maximum attempts: %d reached. Last error: %s\n", cfg.MaxAttempts, err.Error())
-	return ErrMaximumAttemptsExceeded
+	return fmt.Errorf("maximum attempts: %d reached with error: %w", cfg.MaxAttempts, err)
 }
