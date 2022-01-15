@@ -40,7 +40,7 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 		cfg.PunchTime.Hour = now.Hour()
 		cfg.PunchTime.Minute = now.Minute()
 	}
-	flag.Func("t", "set punch time(format: HH:MM, default: now)", func(s string) error {
+	flag.Func("t", "set punch time to `HH:MM`(default: now)", func(s string) error {
 		if s != "" {
 			return cfg.PunchTime.parse(s)
 		}
@@ -49,7 +49,7 @@ func (cfg *Config) SetFlag(flag *flag.FlagSet) {
 	if cfg.MaxAttempts == 0 {
 		cfg.MaxAttempts = 16
 	}
-	flag.Func("c", "set maximum retry attempts when punch failed(default: 16)", func(s string) error {
+	flag.Func("c", "set maximum retry `attempts` when punch failed(default: 16)", func(s string) error {
 		if s != "" {
 			return parseAttempts(&cfg.MaxAttempts, s)
 		}
