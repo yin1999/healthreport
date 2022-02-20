@@ -15,7 +15,7 @@ import (
 var (
 	// ErrCouldNotLogin login failed
 	ErrCouldNotLogin = errors.New("could not login")
-	// ErrNeedCaptcha
+	// ErrNeedCaptcha try to login in browser first
 	ErrNeedCaptcha = errors.New("login: need captcha")
 )
 
