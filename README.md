@@ -74,7 +74,7 @@
 	# -save: 保存账户信息至文件，第二次启动程序时可不设置用户名、密码两个参数（仅使用: ./healthreport -t 9:52）
 	```
 
-	**Linux**用户可使用[systemd](https://systemd.io/)(`recommend`，支持配置开机自启，配置模板：`_script/healthreport.service`)或者[screen](https://www.gnu.org/software/screen/)管理打卡进程
+	**Linux**用户可使用[systemd](https://systemd.io/)(`recommend`，支持配置开机自启，[参见](#systemd%20使用说明))或者[screen](https://www.gnu.org/software/screen/)管理打卡进程
 
 ### 邮件通知
 
@@ -117,4 +117,40 @@
 	```bash
 	git pull
 	make
+	```
+
+#### systemd 使用说明
+
+使用前，请先授予可执行权限：
+
+```bash
+chmod +x ./_script/run.sh
+```
+
+- 安装服务
+
+	```bash
+	# 
+	sudo ./_script/service.sh install <username> <password> [punchTime]
+
+	# 若已创建 account.json，可直接使用以下命令安装服务
+	sudo ./_script/service.sh install [punchTime]
+	```
+
+- 卸载服务
+
+	```bash
+	sudo ./_script/service.sh uninstall
+	```
+
+- 启动服务
+
+	```bash
+	sudo systemctl start healthreport.servie
+	```
+
+- 设置开机自启
+
+	```bash
+	sudo systemctl enable healthreport.servie
 	```
