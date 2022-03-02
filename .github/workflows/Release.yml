@@ -99,7 +99,7 @@ jobs:
         echo "ASSERT=${assertName}" >> ${GITHUB_ENV}
 
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set up Go
       uses: actions/setup-go@v2
