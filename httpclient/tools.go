@@ -6,9 +6,9 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/base64"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/textproto"
 	"net/url"
@@ -81,8 +81,9 @@ func encryptAES(data, key string) (string, error) {
 // randBytes generate random bytes
 func randBytes(data []byte) {
 	const fill = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
+	rand.Read(data)
 	for i := range data {
-		data[i] = fill[rand.Int31()%int32(len(fill))]
+		data[i] = fill[data[i]%byte(len(fill))]
 	}
 }
 
