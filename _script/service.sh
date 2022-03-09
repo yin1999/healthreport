@@ -42,7 +42,7 @@ if [ $# -lt 3 ]; then
 		echo "case#2    $0 install 08:00"
 		exit 1
 	else
-		execStart="${program}"
+		execStart="${program} -account \${CREDENTIALS_DIRECTORY}/account.json"
 		if [ $# -eq 2 ]; then
 			execStart="${execStart} -t $2"
 		fi
@@ -63,7 +63,8 @@ After=network-online.target
 # set http proxy
 # Environment="HTTP_PROXY=http://localhost:1080"
 # Environment="HTTPS_PROXY=http://localhost:1080"
-WorkingDirectory=${parentDir}
+DynamicUser=yes
+LoadCredential=account.json:${parentDir}/account.json
 ExecStart=${execStart}
 ExecReload=/bin/kill -HUP \$MAINPID
 Type=notify
