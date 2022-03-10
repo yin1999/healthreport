@@ -74,7 +74,7 @@
 	# -save: 保存账户信息至文件，第二次启动程序时可不设置用户名、密码两个参数（仅使用: ./healthreport -t 9:52）
 	```
 
-	**Linux**用户可使用[systemd](https://systemd.io/)(`recommend`，支持配置开机自启，[参见](#systemd%20使用说明))或者[screen](https://www.gnu.org/software/screen/)管理打卡进程
+	**Linux**用户可使用[systemd](https://systemd.io/)(`recommend`，支持配置开机自启，[使用说明](#systemd-使用说明))或者[screen](https://www.gnu.org/software/screen/)管理打卡进程
 
 ### 邮件通知
 
