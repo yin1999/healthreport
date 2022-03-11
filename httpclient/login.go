@@ -126,7 +126,7 @@ func (c *punchClient) login(account *Account) (err error) {
 }
 
 func (c *punchClient) logout() (err error) {
-	const logoutURL = "http://authserver.hhu.edu.cn/authserver/logout"
+	const logoutURL = "https://authserver.hhu.edu.cn/authserver/logout"
 	if err = c.ctx.Err(); err != nil {
 		return
 	}

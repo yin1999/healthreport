@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -62,11 +61,10 @@ func encryptAES(data, key string) (string, error) {
 	cipherText := make([]byte, 64+len(data)+padLen)
 	randBytes(cipherText[:64])
 	copy(cipherText[64:], []byte(data))
-	if padLen > 0 {
-		pad := bytes.Repeat([]byte{byte(padLen)}, padLen)
-		copy(cipherText[64+len(data):], pad)
+	if padLen > 0 { // pkcs7padding
+		fillBytes(cipherText[64+len(data):], byte(padLen))
 	}
-	iv := make([]byte, 16)
+	iv := make([]byte, aes.BlockSize)
 	randBytes(iv)
 
 	copy(cipherText[64:], data)
@@ -87,6 +85,19 @@ func randBytes(data []byte) {
 	}
 }
 
+// fillBytes fill dst with data
+func fillBytes(dst []byte, data byte) {
+	if len(dst) == 0 {
+		return
+	}
+	bp := 1
+	dst[0] = data
+	for bp < len(dst) {
+		copy(dst[bp:], dst[:bp])
+		bp <<= 1
+	}
+}
+
 // scanLine scan a line
 func scanLine(reader *bufio.Reader) (string, error) {
 	data, isPrefix, err := reader.ReadLine() // data is not a copy, use it carefully
@@ -97,6 +108,7 @@ func scanLine(reader *bufio.Reader) (string, error) {
 	return res, err
 }
 
+// drainBody discard all the data from reader and then close the reader
 func drainBody(body io.ReadCloser) {
 	io.Copy(io.Discard, body)
 	body.Close()
