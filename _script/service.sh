@@ -25,6 +25,12 @@ fi
 
 parentDir=$(dirname $(dirname $(readlink -f "$0")))
 program=${parentDir}/healthreport
+
+if [ -f ${parentDir}/email.json ]; then
+	program="${program} -email \${CREDENTIALS_DIRECTORY}/email.json"
+	loadEmail="LoadCredential=email.json:${parentDir}/email.json"
+fi
+
 if [ $# -lt 3 ]; then
 	if [ ! -f "${parentDir}/account.json" ]; then
 		echo "Usage: $0 install <username> <password> [punchTime]"
@@ -65,6 +71,7 @@ After=network-online.target
 # Environment="HTTPS_PROXY=http://localhost:1080"
 DynamicUser=yes
 LoadCredential=account.json:${parentDir}/account.json
+${loadEmail}
 ExecStart=${execStart}
 ExecReload=/bin/kill -HUP \$MAINPID
 Type=notify
