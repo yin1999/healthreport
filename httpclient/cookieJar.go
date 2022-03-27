@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type cookieJar []*http.Cookie
@@ -17,7 +18,11 @@ func newCookieJar() *cookieJar {
 
 // SetCookies set cookies to cookie storage
 func (cookies *cookieJar) SetCookies(u *url.URL, newCookies []*http.Cookie) {
+	now := time.Now()
 	for _, cookie := range newCookies {
+		if cookie.Expires.IsZero() != cookie.Expires.Before(now) || cookie.MaxAge < 0 { // cookie is expired
+			continue
+		}
 		if cookie.Domain == "" { // if cookie.Domain is empty, using host instead
 			cookie.Domain = u.Hostname()
 		}
