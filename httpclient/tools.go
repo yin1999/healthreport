@@ -18,7 +18,7 @@ var generalHeaders = http.Header{
 	"Accept":          []string{"*/*"},
 	"Accept-Language": []string{"zh-CN,zh;q=0.9"},
 	"Connection":      []string{"keep-alive"},
-	"User-Agent":      []string{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.0.0 Safari/537.36"},
+	"User-Agent":      []string{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.0.0 Safari/537.36"},
 }
 
 func postFormWithContext(ctx context.Context, url string, data url.Values) (*http.Request, error) {
@@ -60,14 +60,12 @@ func encryptAES(data, key string) (string, error) {
 	padLen := aes.BlockSize - len(data)%aes.BlockSize
 	cipherText := make([]byte, 64+len(data)+padLen)
 	randBytes(cipherText[:64])
-	copy(cipherText[64:], []byte(data))
+	copy(cipherText[64:], data)
 	if padLen > 0 { // pkcs7padding
 		fillBytes(cipherText[64+len(data):], byte(padLen))
 	}
 	iv := make([]byte, aes.BlockSize)
 	randBytes(iv)
-
-	copy(cipherText[64:], data)
 
 	mode := cipher.NewCBCEncrypter(block, iv)
 
