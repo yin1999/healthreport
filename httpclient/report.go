@@ -2,19 +2,12 @@ package httpclient
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"strings"
-	"time"
-
-	"github.com/google/go-querystring/query"
 )
-
-// ErrCouldNotGetFormSession get form session id failed
-var ErrCouldNotGetFormSession = errors.New("could not get form session")
 
 type htmlSymbol uint8
 
@@ -23,19 +16,15 @@ const (
 	symbolString
 )
 
-const reportDomain = "form.hhu.edu.cn"
-
 var (
-	//ErrCannotParseData cannot parse html data error
-	ErrCannotParseData = errors.New("data: parse error")
-
-	timeZone = time.FixedZone("CST", 8*3600)
+	//ErrIncompleteForm the form is incomplete
+	ErrIncompleteForm = errors.New("form: incomplete form")
 )
 
-// getFormSessionID 获取打卡系统的SessionID
-func (c *punchClient) getFormSessionID() (path string, err error) {
+// getFormSessionID 获取打卡信息
+func (c *punchClient) getFormSessionID() (schoolTerm, grade string, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/form/list")
+	req, err = getWithContext(c.ctx, host+"/txxm/default.aspx?dfldm=02") // fixed to 02
 	if err != nil {
 		return
 	}
@@ -46,31 +35,37 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 	}
 	defer drainBody(res.Body)
 
-	if c.httpClient.Jar.Cookies(&url.URL{Host: reportDomain}) == nil {
-		err = ErrCouldNotGetFormSession
+	bufferReader := bufio.NewReader(res.Body)
+
+	_, schoolTerm, err = parseHTML(bufferReader, "<option value=")
+	if err != nil {
+		err = fmt.Errorf("cannot parse school term, err: %w", err)
 		return
 	}
 
-	bufferReader := bufio.NewReader(res.Body)
-
-	for err == nil && !strings.HasPrefix(path, `<a href="/pdc/formDesignApi/S/`) {
-		path, err = scanLine(bufferReader)
-	}
-
-	if path != "" {
-		var data []byte
-		data, err = parseData(path, symbolString)
-		path = string(data)
-	} else {
-		err = fmt.Errorf("get form url failed, err: %w", err)
+	_, grade, err = parseHTML(bufferReader, `<input name="nd"`)
+	if err != nil {
+		err = fmt.Errorf("cannot parse grade, err: %w", err)
 	}
 	return
 }
 
+var fields = [...]string{"__EVENTARGUMENT", "__VIEWSTATE", "__VIEWSTATEENCRYPTED", "__VIEWSTATEGENERATOR",
+	"bdbz", "bjhm", "brcnnrss", "brjkqk", "brjkqkdm", "ck_brcnnrss", "cw", "czsj",
+	"databcdel", "databcxs", "dcbz", "fjmf", "hjzd", "jjzt", "jkmys", "jkmysdm", "lszt",
+	"mc", "msie", "ndbz", "pa", "pb", "pc", "pd", "pe", "pf", "pg", "pkey", "pkey4", "psrc",
+	"pzd_lock", "pzd_lock2", "pzd_lock3", "pzd_lock4", "pzd_y", "qx2_d", "qx2_i", "qx2_r",
+	"qx2_u", "qx_d", "qx_i", "qx_r", "qx_u", "sfjczgfx", "sfjczgfxdm", "sfzx", "sfzxdm",
+	"smbz", "st_nd", "st_xq", "tbrq", "tkey", "tkey4", "twqk", "twqkdm", "tzrjkqk", "tzrjkqkdm",
+	"uname", "xcmqk", "xcmqkdm", "xdm", "xh", "xm", "xqbz", "xs_bj", "xzbz",
+}
+
+var fixedFields = map[string]string{"__EVENTTARGET": "databc"}
+
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail(path string) (form map[string]string, params *QueryParam, err error) {
+func (c *punchClient) getFormDetail(uri string) (form map[string]string, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, "http://"+reportDomain+path)
+	req, err = getWithContext(c.ctx, host+uri)
 	if err != nil {
 		return
 	}
@@ -79,135 +74,69 @@ func (c *punchClient) getFormDetail(path string) (form map[string]string, params
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
+	defer drainBody(res.Body)
+	bufferReader := bufio.NewReader(res.Body)
+	form = make(map[string]string, len(fields))
+	for _, key := range fields {
+		form[key] = ""
+	}
 
-	var (
-		bufferReader  = bufio.NewReader(res.Body)
-		wid, formData []byte
-		line          string
-	)
-
-	for err == nil {
-		line, err = scanLine(bufferReader)
-		if strings.HasPrefix(line, "var _selfFormWid") {
-			wid, err = parseData(line, symbolString)
+	var key, value string
+	for {
+		key, value, err = parseHTML(bufferReader, "<input")
+		if err != nil {
 			break
 		}
-	}
-	for err == nil {
-		line, err = scanLine(bufferReader)
-		if strings.HasPrefix(line, "fillDetail") {
-			formData, err = parseData(line, symbolJSON)
-			break
+		if _, ok := form[key]; ok {
+			form[key] = value
 		}
 	}
-	drainBody(res.Body)
-
+	for key, value := range fixedFields {
+		form[key] = value
+	}
+	if err == io.EOF {
+		err = nil
+	}
 	if err != nil {
 		err = fmt.Errorf("get form data failed, err: %w", err)
-		return
 	}
-
-	tmpForm := make(map[string]string)
-	if err = json.Unmarshal(formData, &tmpForm); err != nil {
-		return
-	}
-
-	if err = zeroValueCheck(tmpForm); err != nil {
-		return
-	}
-	tmpForm["DATETIME_CYCLE"] = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
-
-	form = tmpForm
-	params = &QueryParam{
-		Wid:    string(wid),
-		UserID: form["USERID"],
-	}
-
-	delete(tmpForm, "CLRQ")   // 删除填报时间字段
-	delete(tmpForm, "USERID") // 删除UserID字段
 	return
 }
 
 // postForm 提交打卡表单
-func (c *punchClient) postForm(form map[string]string, params *QueryParam) error {
+func (c *punchClient) postForm(form map[string]string, uri string) error {
 	value := make(url.Values, len(form))
 	for key, val := range form {
 		value.Set(key, val)
 	}
 
 	req, err := postFormWithContext(c.ctx,
-		"http://"+reportDomain+"/pdc/formDesignApi/dataFormSave",
+		host+uri,
 		value,
 	)
 	if err != nil {
 		return err
 	}
 
-	value, err = query.Values(params)
-	if err != nil {
-		return err
-	}
-
-	req.URL.RawQuery = value.Encode()
-
 	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {
 		return err
 	}
-	drainBody(res.Body)
+	defer drainBody(res.Body)
 
 	if res.StatusCode != http.StatusOK {
 		return errors.New("post failed, status: " + res.Status)
 	}
-	return nil
-}
-
-func parseData(data string, symbol htmlSymbol) (res []byte, err error) {
-	switch symbol {
-	case symbolJSON:
-		res, err = getSlice(data, '{', '}', true)
-	case symbolString:
-		res, err = getSlice(data, '\'', '\'', false)
-		if err != nil {
-			res, err = getSlice(data, '"', '"', false)
-		}
+	_, errorMsg, _ := parseHTML(bufio.NewReader(res.Body), `<input name="cw"`) // get the error message
+	switch errorMsg {
+	case "保存修改成功!":
+		// success
+	case "信息填报不完整\r\n保存失败!":
+		err = ErrIncompleteForm
+	case "":
+		err = errors.New("post failed")
 	default:
-		err = errors.New("data: invalid symbol")
+		err = errors.New("post failed, err: " + errorMsg)
 	}
-	return
-}
-
-func getSlice(data string, startSymbol, endSymbol byte, containSymbol bool) ([]byte, error) {
-	start := strings.IndexByte(data, startSymbol)
-	if start == -1 {
-		return nil, ErrCannotParseData
-	}
-
-	length := strings.IndexByte(data[start+1:], endSymbol)
-	if length == -1 {
-		return nil, ErrCannotParseData
-	}
-
-	if containSymbol {
-		length += 2
-	} else {
-		start++
-	}
-
-	res := make([]byte, length)
-	copy(res, data[start:]) // copy the sub string from data to res
-
-	return res, nil
-}
-
-func zeroValueCheck(item map[string]string) error {
-	if len(item) == 0 {
-		return errors.New("check: the map is empty")
-	}
-	for key, value := range item {
-		if value == "" {
-			return errors.New("check: '" + key + "' has zero value")
-		}
-	}
-	return nil
+	return err
 }

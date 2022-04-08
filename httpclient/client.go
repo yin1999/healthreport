@@ -2,7 +2,7 @@ package httpclient
 
 import (
 	"context"
-	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -14,9 +14,6 @@ func LoginConfirm(ctx context.Context, account interface{}, timeout time.Duratio
 	ctx, cc = context.WithTimeout(ctx, timeout)
 	c := newClient(ctx)
 	err := c.login(account.(*Account))
-	if err == nil {
-		c.logout()
-	}
 	cc()
 	return parseURLError(err)
 }
@@ -36,30 +33,24 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 	if err != nil {
 		return
 	}
-	defer c.logout()
 
-	var path string
-	path, err = c.getFormSessionID() // 获取打卡系统的cookie
+	var schoolTerm, grade string
+	schoolTerm, grade, err = c.getFormSessionID() // 获取打卡系统的cookie
 	if err != nil {
 		return
 	}
 
+	uri := fmt.Sprintf("/txxm/rsbulid/r_3_3_st_jkdk.aspx?xq=%s&nd=%s&msie=1", schoolTerm, grade)
 	var (
-		form   map[string]string
-		params *QueryParam
+		form map[string]string
 	)
-	form, params, err = c.getFormDetail(path) // 获取打卡列表信息
+	form, err = c.getFormDetail(uri) // 获取打卡列表信息
 	if err != nil {
 		return
 	}
 
-	err = c.postForm(form, params) // 提交表单
+	err = c.postForm(form, uri) // 提交表单
 	return
-}
-
-// SetSslVerify when set false, insecure connection will be allowed
-func SetSslVerify(verify bool) {
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: !verify}
 }
 
 func newClient(ctx context.Context) *punchClient {
