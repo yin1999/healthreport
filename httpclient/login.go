@@ -71,12 +71,7 @@ func (c *punchClient) login(account *Account) (err error) {
 		if len(f.VCode) == 4 {
 			break
 		}
-		t := time.NewTimer(time.Second)
-		select {
-		case <-t.C:
-		case <-c.ctx.Done():
-			t.Stop()
-			err = c.ctx.Err()
+		if err = wait(c.ctx, time.Second); err != nil {
 			return
 		}
 	}
