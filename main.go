@@ -128,7 +128,6 @@ func initApp() {
 	checkEmail := flagSet.Bool("e", false, "check email")
 	genEmailCfg := flagSet.Bool("g", false, "generate email config")
 	save := flagSet.Bool("save", false, "save account info to file")
-	insecure := flagSet.Bool("k", false, "allow insecure server connections when using SSL")
 
 	flagSet.StringVar(&account.Username, "u", "", "set username")
 	flagSet.StringVar(&account.Password, "p", "", "set password")
@@ -188,10 +187,6 @@ func initApp() {
 
 	if *version || *checkEmail || *genEmailCfg || *save {
 		os.Exit(0)
-	}
-
-	if *insecure {
-		client.SetSslVerify(false)
 	}
 }
 

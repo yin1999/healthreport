@@ -1,19 +1,21 @@
-FROM golang:alpine as builder
+FROM golang:latest as builder
 
-RUN apk add git --no-cache
+RUN apt update && apt install libtesseract-dev -y
 
 WORKDIR /app
-
 COPY . ./
-# static linking
-ENV CGO_ENABLED=0
+
+RUN curl https://raw.githubusercontent.com/Shreeshrii/tessdata_shreetest/226419f02431675e24c9937643ce42f3675e2b56/digits.traineddata -o digits.traineddata
+
 RUN go mod download && go run _script/make.go
 
-FROM busybox:latest
+# images for deployment
+FROM debian:stable-slim
+
+RUN apt update && apt install libtesseract4 -y && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/healthreport /usr/local/bin/
-# add cert file
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /app/digits.traineddata /usr/share/tesseract-ocr/4.00/tessdata/
 
 VOLUME ["/run/secrets"]
 

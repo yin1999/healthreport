@@ -2,105 +2,91 @@ package httpclient
 
 import (
 	"bufio"
-	"encoding/xml"
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
+	"time"
 
 	"github.com/google/go-querystring/query"
+	"github.com/yin1999/healthreport/utils/captcha"
 )
 
 var (
 	// ErrCouldNotLogin login failed
 	ErrCouldNotLogin = errors.New("could not login")
-	// ErrNeedCaptcha try to login in browser first
-	ErrNeedCaptcha = errors.New("login: need captcha")
+	// ErrWrongCaptcha the captcha is wrong
+	ErrWrongCaptcha = errors.New("login: wrong captcha")
 )
 
 type loginForm struct {
-	Username   string `url:"username"`
-	Password   string `url:"password"`
-	Session    string `fill:"lt" url:"lt"`
-	Method     string `fill:"dllt" url:"dllt"`
-	Excution   string `fill:"execution" url:"execution"`
-	Event      string `fill:"_eventId" url:"_eventId"`
-	Show       string `fill:"rmShown" url:"rmShown"`
-	EncryptKey string `fill:"pwdDefaultEncryptSalt" url:"-"`
+	Username           string `url:"userbh"`
+	Password           string `url:"pas2s"`
+	VCode              string `url:"vcode"`
+	CW                 string `url:"cw"`
+	ViewState          string `fill:"__VIEWSTATE" url:"__VIEWSTATE"`
+	ViewStateGenerator string `fill:"__VIEWSTATEGENERATOR" url:"__VIEWSTATEGENERATOR"`
+	ViewStateEncrypted string `fill:"__VIEWSTATEENCRYPTED" url:"__VIEWSTATEENCRYPTED"`
+	XZBZ               string `url:"xzbz"` // default to 1
+	YXDM               string `fill:"yxdm" url:"yxdm"`
 }
 
 // login 登录系统
 func (c *punchClient) login(account *Account) (err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, "https://authserver.hhu.edu.cn/authserver/needCaptcha.html")
-	if err != nil {
-		return
-	}
-	q := url.Values{
-		"username":    []string{account.Username},
-		"pwdEncrypt2": []string{"pwdEncryptSalt"},
-	}
-	req.URL.RawQuery = q.Encode()
-	var res *http.Response
-	if res, err = c.httpClient.Do(req); err != nil {
-		return
-	}
-	d := make([]byte, 4) // only read for "true"
-	res.Body.Read(d)
-	drainBody(res.Body)
-	if string(d) == "true" {
-		err = ErrNeedCaptcha
-		return
-	}
-	const loginURL = "https://authserver.hhu.edu.cn/authserver/login"
+	loginURL := host + "/login.aspx"
 	req, err = getWithContext(c.ctx, loginURL)
 	if err != nil {
 		return
 	}
-
+	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
-	defer res.Body.Close()
 	f := &loginForm{}
-
-	{
-		bufferReader := bufio.NewReader(res.Body)
-		var line string
-		const inputElement = "<input type=\"hidden\""
-		for !strings.HasPrefix(line, inputElement) {
-			line, err = scanLine(bufferReader)
-			if err != nil {
-				return
-			}
-		}
-
-		var filler *structFiller
-		if filler, err = newFiller(f, "fill"); err != nil {
-			return
-		}
-		var v *elementInput
-		for {
-			v, err = elementParse(line)
-			if err != nil {
-				return
-			}
-			filler.fill(v.Key, v.Value)
-			line, _ = scanLine(bufferReader)
-			if !strings.HasPrefix(line, inputElement) {
-				break
-			}
-		}
-	}
+	err = parseForm(res.Body, f)
 	drainBody(res.Body)
-
-	f.Username = account.Username
-	f.Password, err = encryptAES(account.Password, f.EncryptKey)
 	if err != nil {
 		return
 	}
+	req, err = getWithContext(c.ctx, host+"/Vcode.ASPX")
+	if err != nil {
+		return
+	}
+	// try three times
+	for i := 0; i < 3; i++ {
+		if res, err = c.httpClient.Do(req); err != nil {
+			return
+		}
+		var vImg []byte
+		vImg, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if f.VCode, err = captcha.Recognize(vImg); err != nil {
+			return
+		}
+		if len(f.VCode) == 4 {
+			break
+		}
+		if err = wait(c.ctx, time.Second); err != nil {
+			return
+		}
+	}
+	if len(f.VCode) != 4 {
+		return errors.New("cannot recognize vcode")
+	}
 
+	f.Username = account.Username
+	hash := md5.New()
+	_, err = hash.Write([]byte(strings.ToUpper(account.Password)))
+	if err != nil {
+		return
+	}
+	f.Password = hex.EncodeToString(hash.Sum(nil))
+	f.XZBZ = "1"
 	var value url.Values
 	if value, err = query.Values(f); err != nil {
 		return
@@ -116,99 +102,42 @@ func (c *punchClient) login(account *Account) (err error) {
 		return
 	}
 	c.httpClient.CheckRedirect = nil
-	drainBody(res.Body)
+	defer drainBody(res.Body)
 
-	if res.StatusCode != http.StatusFound { // redirect after login success
+	if res.StatusCode == http.StatusFound { // redirect after login success
+		return
+	}
+	_, cw, _ := parseHTML(bufio.NewReader(res.Body), `<input name="cw"`)
+
+	switch cw {
+	case "验证码错误!":
+		err = ErrWrongCaptcha
+	case "":
 		err = ErrCouldNotLogin
-		return
+	default:
+		err = fmt.Errorf("login failed: %s", cw)
 	}
 	return
 }
 
-func (c *punchClient) logout() (err error) {
-	const logoutURL = "https://authserver.hhu.edu.cn/authserver/logout"
-	if err = c.ctx.Err(); err != nil {
+func parseForm(body io.Reader, form *loginForm) (err error) {
+	bufferReader := bufio.NewReader(body)
+	const inputElement = "<input type=\"hidden\""
+
+	var filler *structFiller
+	if filler, err = newFiller(form, "fill"); err != nil {
 		return
 	}
-	req, err := getWithContext(c.ctx, logoutURL)
-	if err != nil {
-		return
-	}
-	c.httpClient.CheckRedirect = notRedirect // not redirect
-	res, err := c.httpClient.Do(req)
-	if err != nil {
-		return
-	}
-	drainBody(res.Body)
-	return
-}
-
-type elementInput struct {
-	Key   string `xml:"name,attr"`
-	Value string `xml:"value,attr"`
-	ID    string `xml:"id,attr"`
-}
-
-func elementParse(v string) (*elementInput, error) {
-	if len(v) < 2 {
-		return nil, &xml.SyntaxError{Msg: "error format", Line: 1}
-	}
-	out := &elementInput{}
-	data := []byte(v)
-	if data[len(data)-2] != '/' {
-		data = append(data[:len(data)-1], '/', '>')
-	}
-	err := xml.Unmarshal(data, out)
-	if err != nil {
-		return nil, err
-	}
-	if out.Key == "" {
-		out.Key = out.ID
-	}
-	return out, err
-}
-
-type structFiller struct {
-	m map[string]int
-	v reflect.Value
-}
-
-// newFiller default tag: fill.
-// The item must be a pointer
-func newFiller(item interface{}, tag string) (*structFiller, error) {
-	v := reflect.ValueOf(item).Elem()
-	if !v.CanAddr() {
-		return nil, errors.New("reflect: item must be a pointer")
-	}
-	if tag == "" {
-		tag = "fill"
-	}
-	findTagName := func(t reflect.StructTag) (string, error) {
-		if tn, ok := t.Lookup(tag); ok && len(tn) > 0 {
-			return strings.Split(tn, ",")[0], nil
-		}
-		return "", errors.New("skip")
-	}
-	s := &structFiller{
-		m: make(map[string]int),
-		v: v,
-	}
-	for i := 0; i < v.NumField(); i++ {
-		typeField := v.Type().Field(i)
-		name, err := findTagName(typeField.Tag)
+	var key, value string
+	for {
+		key, value, err = parseHTML(bufferReader, inputElement)
 		if err != nil {
-			continue
+			break
 		}
-		s.m[name] = i
+		filler.fill(key, value)
 	}
-	return s, nil
-}
-
-func (s *structFiller) fill(key string, value interface{}) error {
-	fieldNum, ok := s.m[key]
-	if !ok {
-		return errors.New("reflect: field <" + key + "> not exists")
+	if err == io.EOF {
+		err = nil
 	}
-	s.v.Field(fieldNum).Set(reflect.ValueOf(value))
-	return nil
+	return
 }
