@@ -129,7 +129,7 @@ func (c *punchClient) postForm(form map[string]string, uri string) error {
 	}
 	_, errorMsg, _ := parseHTML(bufio.NewReader(res.Body), `<input name="cw"`) // get the error message
 	switch errorMsg {
-	case "保存修改成功!":
+	case "保存修改成功!", "增加记录成功!":
 		// success
 	case "信息填报不完整\r\n保存失败!":
 		err = ErrIncompleteForm
