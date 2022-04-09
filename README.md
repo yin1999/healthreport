@@ -19,34 +19,10 @@
 
 ## 安装教程
 
-适用类Unix/windows，想直接使用的，请下载[release](https://github.com/yin1999/healthreport/releases/latest)版本后直接转到[使用说明](#使用说明) 
+适用类Unix，想直接使用的，请下载[release](https://github.com/yin1999/healthreport/releases/latest)版本后直接转到[使用说明](#使用说明) 
 
-源码安装依赖[Golang](https://golang.google.cn/)-基于golang开发、[git](https://git-scm.com/)-版本管理工具以及[make](https://www.gnu.org/software/make/)-快速构建，国内使用推荐开启golang的Go module并使用国内的Go proxy服务  
+源码安装依赖[Golang](https://golang.google.cn/)-基于golang开发、[git](https://git-scm.com/)-版本管理工具、[make](https://www.gnu.org/software/make/)-快速构建，以及[tesseract-ocr](https://github.com/tesseract-ocr/tessdoc)——验证码识别，国内使用推荐开启golang的Go module并使用国内的Go proxy服务  
 推荐使用[Goproxy.cn](https://goproxy.cn/)或[阿里云 Goproxy](https://developer.aliyun.com/mirror/goproxy)
-
-### 安装步骤
-
-1. 环境配置，以`Debian`为例
-
-	- 安装Golang[>= 1.16]: [golang.google.cn/doc/install](https://golang.google.cn/doc/install)
-
-	- 安装 git、make、libtesseract-dev:
-
-	   ```bash
-	   sudo apt install git make libtesseract-dev -y
-	   ```
-
-2. 通过源码下载、编译
-
-	```bash
-	# 配置Goproxy
-	go env -w GOPROXY=https://mirrors.aliyun.com/goproxy/,direct  
-
-	# 下载编译
-	git clone --depth 1 https://github.com/yin1999/healthreport.git
-	cd healthreport
-	make # 若没有安装make，可以使用命令: go run _script/make.go 代替
-	```
 
 ## 使用说明
 
