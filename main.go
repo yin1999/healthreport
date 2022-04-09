@@ -14,6 +14,7 @@ import (
 
 	client "github.com/yin1999/healthreport/httpclient"
 	"github.com/yin1999/healthreport/serve"
+	"github.com/yin1999/healthreport/utils/captcha"
 	"github.com/yin1999/healthreport/utils/config"
 	"github.com/yin1999/healthreport/utils/email"
 	"github.com/yin1999/healthreport/utils/systemd"
@@ -73,6 +74,8 @@ func main() {
 
 func app(ctx context.Context, ready func()) {
 	cfg.Show(logger)
+	captcha.Init()
+	defer captcha.Close()
 
 	emailCfg, err := email.LoadConfig(mailConfigPath)
 	if err == nil {
