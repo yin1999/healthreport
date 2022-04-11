@@ -4,12 +4,14 @@ on:
     branches: [ main ]
     paths-ignore:
     - '.**'
+    - '!.github/workflows/Build.yml'
     - 'LICENSE'
     - 'README.md'
   pull_request:
     branches: [ main ]
     paths-ignore:
     - '.**'
+    - '!.github/workflows/Build.yml'
     - 'LICENSE'
     - 'README.md'
 
@@ -18,17 +20,14 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-    - name: Set GoVersion
-      run: |
-        echo "GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')" >> ${GITHUB_ENV}
-
     - name: Check out code
       uses: actions/checkout@v3
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
-        go-version: ${{ env.GoVersion }}
+        go-version: '>=1.17'
+        check-latest: true
 
     - name: Dep
       run: |

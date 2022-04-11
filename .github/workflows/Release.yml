@@ -4,30 +4,18 @@ on:
     types: [published]
 
 jobs:
-  init:
-    name: init
-    runs-on: ubuntu-latest
-    outputs:
-      GoVersion: ${{ steps.step1.outputs.GoVersion }}
-    steps:
-    - id: step1
-      name: Set GoVersion
-      run: |
-        GoVersion=$(curl -s https://raw.githubusercontent.com/actions/go-versions/main/versions-manifest.json | grep -oEm 1 '"version": "[0-9]{1}.[0-9]{1,}(.[0-9]{1,})?"' | cut -d':' -f2 | sed 's/ //g; s/"//g')
-        echo "::set-output name=GoVersion::${GoVersion}"
-
   build:
     name: Build and Upload
-    needs: [init]
     runs-on: ubuntu-latest
     steps:
     - name: Check out code
       uses: actions/checkout@v3
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
-        go-version: ${{ needs.init.outputs.GoVersion }}
+        go-version: '>=1.17'
+        check-latest: true
 
     - name: Dep
       run: |
