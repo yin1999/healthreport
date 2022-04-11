@@ -1,7 +1,6 @@
 package captcha
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/otiai10/gosseract/v2"
@@ -15,6 +14,7 @@ var (
 func Init() {
 	client = gosseract.NewClient()
 	client.SetLanguage("digits")
+	client.SetWhitelist("0123456789")
 }
 
 func Close() error {
@@ -26,8 +26,5 @@ func Recognize(data []byte) (text string, err error) {
 	defer mux.Unlock()
 	client.SetImageFromBytes(data)
 	text, err = client.Text()
-	if err == nil {
-		text = strings.ReplaceAll(text, " ", "")
-	}
 	return
 }
