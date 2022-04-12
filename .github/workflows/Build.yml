@@ -18,7 +18,10 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest', 'windows-latest' ]
+    runs-on: ${{ matrix.os }}
     steps:
     - name: Check out code
       uses: actions/checkout@v3
@@ -29,9 +32,16 @@ jobs:
         go-version: '^1.17'
         check-latest: true
 
+    - name: Install Tesseract-OCR(windows)
+      if: matrix.os == 'windows-latest'
+      run: choco install tesseract-ocr
+
+    - name: Install Tesseract-OCR(ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt install libtesseract-dev -y
+
     - name: Dep
       run: |
-        sudo apt install libtesseract-dev -y
         make dep
 
     - name: Build
