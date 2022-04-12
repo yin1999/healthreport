@@ -35,8 +35,10 @@ jobs:
     - name: Install Tesseract-OCR(windows)
       if: matrix.os == 'windows-latest'
       run: |
+        $env:Path += ';C:\msys64\usr\bin\'
         choco install tesseract-ocr
         pacman -S mingw-w64-x86_64-leptonica
+        Get-Command gcc
 
     - name: Install Tesseract-OCR(ubuntu)
       if: matrix.os == 'ubuntu-latest'
