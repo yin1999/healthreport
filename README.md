@@ -15,7 +15,7 @@
 	3. 日志同步输出到Stderr
 	4. 版本查询
 	5. 打卡失败邮件通知推送功能(目前支持STARTTLS/TLS端口+PlainAuth登录到SMTP服务器)
-	6. 通过环境变量设置http代理(HTTP_PROXY/HTTPS_PROXY均需设置)
+	6. 通过环境变量设置http代理(设置 HTTP_PROXY)
 
 ## 安装教程
 
