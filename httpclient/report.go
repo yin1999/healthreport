@@ -14,41 +14,14 @@ type htmlSymbol uint8
 const (
 	symbolJSON htmlSymbol = iota
 	symbolString
+
+	reportURI = "/Mobile/rsbulid/r_3_3_st_jkdk.aspx"
 )
 
 var (
 	//ErrIncompleteForm the form is incomplete
 	ErrIncompleteForm = errors.New("form: incomplete form")
 )
-
-// getFormSessionID 获取打卡信息
-func (c *punchClient) getFormSessionID() (schoolTerm, grade string, err error) {
-	var req *http.Request
-	req, err = getWithContext(c.ctx, host+"/txxm/default.aspx?dfldm=02") // fixed to 02
-	if err != nil {
-		return
-	}
-
-	var res *http.Response
-	if res, err = c.httpClient.Do(req); err != nil {
-		return
-	}
-	defer drainBody(res.Body)
-
-	bufferReader := bufio.NewReader(res.Body)
-
-	_, schoolTerm, err = parseHTML(bufferReader, "<option value=")
-	if err != nil {
-		err = fmt.Errorf("cannot parse school term, err: %w", err)
-		return
-	}
-
-	_, grade, err = parseHTML(bufferReader, `<input name="nd"`)
-	if err != nil {
-		err = fmt.Errorf("cannot parse grade, err: %w", err)
-	}
-	return
-}
 
 var fields = [...]string{"__EVENTARGUMENT", "__VIEWSTATE", "__VIEWSTATEENCRYPTED", "__VIEWSTATEGENERATOR",
 	"bdbz", "bjhm", "brcnnrss", "brjkqk", "brjkqkdm", "ck_brcnnrss", "cw", "czsj",
@@ -63,9 +36,9 @@ var fields = [...]string{"__EVENTARGUMENT", "__VIEWSTATE", "__VIEWSTATEENCRYPTED
 var fixedFields = map[string]string{"__EVENTTARGET": "databc"}
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail(uri string) (form map[string]string, err error) {
+func (c *punchClient) getFormDetail() (form map[string]string, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, host+uri)
+	req, err = getWithContext(c.ctx, host+reportURI)
 	if err != nil {
 		return
 	}
@@ -104,14 +77,14 @@ func (c *punchClient) getFormDetail(uri string) (form map[string]string, err err
 }
 
 // postForm 提交打卡表单
-func (c *punchClient) postForm(form map[string]string, uri string) error {
+func (c *punchClient) postForm(form map[string]string) error {
 	value := make(url.Values, len(form))
 	for key, val := range form {
 		value.Set(key, val)
 	}
 
 	req, err := postFormWithContext(c.ctx,
-		host+uri,
+		host+reportURI,
 		value,
 	)
 	if err != nil {

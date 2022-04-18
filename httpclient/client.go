@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -44,22 +43,13 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 		return
 	}
 
-	var schoolTerm, grade string
-	schoolTerm, grade, err = c.getFormSessionID() // 获取打卡系统的cookie
+	var form map[string]string
+	form, err = c.getFormDetail() // 获取打卡列表信息
 	if err != nil {
 		return
 	}
 
-	uri := fmt.Sprintf("/txxm/rsbulid/r_3_3_st_jkdk.aspx?xq=%s&nd=%s&msie=1", schoolTerm, grade)
-	var (
-		form map[string]string
-	)
-	form, err = c.getFormDetail(uri) // 获取打卡列表信息
-	if err != nil {
-		return
-	}
-
-	err = c.postForm(form, uri) // 提交表单
+	err = c.postForm(form) // 提交表单
 	return
 }
 
