@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/textproto"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -75,7 +75,7 @@ func getCommitID() string {
 	if output, err := cmd.Output(); err != nil {
 		return ""
 	} else {
-		return strings.TrimSpace(string(output)) // remove the tailing '\n'
+		return string(textproto.TrimBytes(output)) // remove the tailing '\n'
 	}
 }
 
@@ -92,6 +92,6 @@ func getVersion() string {
 	if output, err := cmd.Output(); err != nil {
 		return ""
 	} else {
-		return strings.TrimSpace(string(output)) // remove the tailing '\n'
+		return string(textproto.TrimBytes(output)) // remove the tailing '\n'
 	}
 }
