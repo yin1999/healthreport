@@ -31,6 +31,7 @@ jobs:
 
     - name: Dep
       run: |
+        sudo apt update
         sudo apt install libtesseract-dev -y
         make dep
 
