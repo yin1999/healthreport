@@ -13,13 +13,8 @@ healthreport
 *.out
 
 # account info file
-account
 account.json
 
-# log
-/log
-
 # config
-config.json
 email.json
 /.vscode
