@@ -34,7 +34,7 @@ type Config struct {
 	MailNickName string
 	Timeout      time.Duration
 	RetryAfter   time.Duration
-	PunchFunc    func(ctx context.Context, account interface{}, timeout time.Duration) error
+	PunchFunc    func(ctx context.Context, account interface{}) error
 }
 
 // Account interface for get account name
@@ -84,12 +84,18 @@ func (cfg Config) PunchServe(ctx context.Context, account Account) error {
 	}
 }
 
+func (cfg *Config) punchWithTimeout(ctx context.Context, account Account) error {
+	ctx, cancel := context.WithTimeout(ctx, cfg.Timeout)
+	defer cancel()
+	return cfg.PunchFunc(ctx, account)
+}
+
 // punch keep trying until successed or max attempts reached
 func (cfg *Config) punch(ctx context.Context, account Account) (err error) {
 	var timer *time.Timer
 	for punchCount := uint8(1); true; punchCount++ {
 		cfg.Logger.Print("Start punch\n")
-		err = cfg.PunchFunc(ctx, account, cfg.Timeout)
+		err = cfg.punchWithTimeout(ctx, account)
 
 		// error handling
 		if err == nil || err == context.Canceled {
