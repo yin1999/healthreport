@@ -8,21 +8,14 @@ import (
 )
 
 // LoginConfirm 验证账号密码
-func LoginConfirm(ctx context.Context, account interface{}, timeout time.Duration) error {
-	var cc context.CancelFunc
-	ctx, cc = context.WithTimeout(ctx, timeout)
+func LoginConfirm(ctx context.Context, account interface{}) error {
 	c := newClient(ctx)
 	err := c.login(account.(*Account))
-	cc()
 	return parseURLError(err)
 }
 
 // Punch 打卡
-func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err error) {
-	var cc context.CancelFunc
-	ctx, cc = context.WithTimeout(ctx, timeout)
-	defer cc()
-
+func Punch(ctx context.Context, account interface{}) (err error) {
 	defer func() {
 		err = parseURLError(err)
 	}()
