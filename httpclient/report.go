@@ -49,7 +49,7 @@ func (c *punchClient) getFormDetail() (form map[string]string, err error) {
 	}
 	defer drainBody(res.Body)
 	bufferReader := bufio.NewReader(res.Body)
-	form = make(map[string]string, len(fields))
+	form = make(map[string]string, len(fields)+len(fixedFields))
 	for _, key := range fields {
 		form[key] = ""
 	}

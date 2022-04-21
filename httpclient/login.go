@@ -21,6 +21,8 @@ var (
 	ErrCouldNotLogin = errors.New("could not login")
 	// ErrWrongCaptcha the captcha is wrong
 	ErrWrongCaptcha = errors.New("login: wrong captcha")
+	// ErrCannotRecognizeCaptcha could not recognize captcha
+	ErrCannotRecognizeCaptcha = errors.New("login: cannot recognize captcha")
 )
 
 type loginForm struct {
@@ -53,32 +55,10 @@ func (c *punchClient) login(account *Account) (err error) {
 	if err != nil {
 		return
 	}
-	req, err = getWithContext(c.ctx, host+"/Vcode.ASPX")
+	f.VCode, err = c.recognizeCaptcha()
 	if err != nil {
 		return
 	}
-	// try three times
-	for i := 0; i < 3; i++ {
-		if res, err = c.httpClient.Do(req); err != nil {
-			return
-		}
-		var vImg []byte
-		vImg, err = io.ReadAll(res.Body)
-		res.Body.Close()
-		if f.VCode, err = captcha.Recognize(vImg); err != nil {
-			return
-		}
-		if len(f.VCode) == 4 {
-			break
-		}
-		if err = wait(c.ctx, time.Second); err != nil {
-			return
-		}
-	}
-	if len(f.VCode) != 4 {
-		return errors.New("cannot recognize vcode")
-	}
-
 	f.Username = account.Username
 	hash := md5.New()
 	_, err = hash.Write([]byte(strings.ToUpper(account.Password)))
@@ -117,6 +97,40 @@ func (c *punchClient) login(account *Account) (err error) {
 	default:
 		err = fmt.Errorf("login failed: %s", cw)
 	}
+	return
+}
+
+func (c *punchClient) recognizeCaptcha() (vcode string, err error) {
+	var req *http.Request
+	req, err = getWithContext(c.ctx, host+"/Vcode.ASPX")
+	if err != nil {
+		return
+	}
+	// try three times
+	for i := 0; i < 3; i++ {
+		var res *http.Response
+		if res, err = c.httpClient.Do(req); err != nil {
+			return
+		}
+		vImg := make([]byte, res.ContentLength)
+		var n int
+		n, err = res.Body.Read(vImg)
+		res.Body.Close()
+		if n != int(res.ContentLength) && err != nil {
+			err = fmt.Errorf("get captcha image failed: %w", err)
+			return
+		}
+		if vcode, err = captcha.Recognize(vImg[:n]); err != nil {
+			return
+		}
+		if len(vcode) == 4 {
+			return
+		}
+		if err = wait(c.ctx, time.Second); err != nil {
+			return
+		}
+	}
+	err = ErrCannotRecognizeCaptcha
 	return
 }
 
