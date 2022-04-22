@@ -61,7 +61,7 @@ func (c *punchClient) login(account *Account) (err error) {
 				return
 			}
 		default:
-			break
+			return
 		}
 	}
 	return
@@ -155,7 +155,7 @@ func recognizeCaptcha(c *punchClient) (vcode string, err error) {
 
 func parseForm(body io.Reader, form *loginForm) (err error) {
 	bufferReader := bufio.NewReader(body)
-	const inputElement = "<input type=\"hidden\""
+	const inputElement = "<input "
 
 	var filler *structFiller
 	if filler, err = newFiller(form, "fill"); err != nil {
