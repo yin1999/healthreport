@@ -17,19 +17,19 @@ import (
 )
 
 var (
-	// ErrCouldNotLogin login failed
-	ErrCouldNotLogin = errors.New("could not login")
 	// ErrWrongCaptcha the captcha is wrong
 	ErrWrongCaptcha = errors.New("login: wrong captcha")
 	// ErrCannotRecognizeCaptcha could not recognize captcha
 	ErrCannotRecognizeCaptcha = errors.New("login: cannot recognize captcha")
 )
 
+const loginURL = host + "/login.aspx"
+
 type loginForm struct {
 	Username           string `url:"userbh"`
 	Password           string `url:"pas2s"`
 	VCode              string `url:"vcode"`
-	CW                 string `url:"cw"`
+	CW                 string `fill:"cw" url:"cw"`
 	ViewState          string `fill:"__VIEWSTATE" url:"__VIEWSTATE"`
 	ViewStateGenerator string `fill:"__VIEWSTATEGENERATOR" url:"__VIEWSTATEGENERATOR"`
 	ViewStateEncrypted string `fill:"__VIEWSTATEENCRYPTED" url:"__VIEWSTATEENCRYPTED"`
@@ -39,45 +39,64 @@ type loginForm struct {
 
 // login 登录系统
 func (c *punchClient) login(account *Account) (err error) {
-	var req *http.Request
-	loginURL := host + "/login.aspx"
-	req, err = getWithContext(c.ctx, loginURL)
-	if err != nil {
-		return
-	}
-	var res *http.Response
-	if res, err = c.httpClient.Do(req); err != nil {
-		return
-	}
-	f := &loginForm{}
-	err = parseForm(res.Body, f)
-	drainBody(res.Body)
-	if err != nil {
-		return
-	}
-	f.VCode, err = c.recognizeCaptcha()
-	if err != nil {
-		return
-	}
-	f.Username = account.Username
 	hash := md5.New()
 	_, err = hash.Write([]byte(strings.ToUpper(account.Password)))
 	if err != nil {
 		return
 	}
-	f.Password = hex.EncodeToString(hash.Sum(nil))
-	f.XZBZ = "1"
-	var value url.Values
-	if value, err = query.Values(f); err != nil {
+	form := &loginForm{
+		Username: account.Username,
+		Password: hex.EncodeToString(hash.Sum(nil)),
+		XZBZ:     "1",
+	}
+	err = loginGet(c, form)
+	if err != nil {
+		return
+	}
+	for i := 0; i < 3; i++ { // 重试 3 次
+		err = loginPost(c, form)
+		switch err {
+		case ErrWrongCaptcha, ErrCannotRecognizeCaptcha:
+			if wait(c.ctx, time.Second*2) != nil {
+				return
+			}
+		default:
+			break
+		}
+	}
+	return
+}
+
+func loginGet(c *punchClient, form *loginForm) error {
+	req, err := getWithContext(c.ctx, loginURL)
+	if err != nil {
+		return err
+	}
+	var res *http.Response
+	res, err = c.httpClient.Do(req)
+	defer drainBody(res.Body)
+	return parseForm(res.Body, form)
+}
+
+func loginPost(c *punchClient, form *loginForm) (err error) {
+	form.VCode, err = recognizeCaptcha(c)
+	if err != nil {
 		return
 	}
 
+	var value url.Values
+	if value, err = query.Values(form); err != nil {
+		return
+	}
+
+	var req *http.Request
 	req, err = postFormWithContext(c.ctx, loginURL, value)
 	if err != nil {
 		return
 	}
 
 	c.httpClient.CheckRedirect = notRedirect
+	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
@@ -87,20 +106,20 @@ func (c *punchClient) login(account *Account) (err error) {
 	if res.StatusCode == http.StatusFound { // redirect after login success
 		return
 	}
-	_, cw, _ := parseHTML(bufio.NewReader(res.Body), `<input name="cw"`)
-
-	switch cw {
+	err = parseForm(res.Body, form) // if login failed, parse form data for next post
+	if err != nil {
+		return
+	}
+	switch form.CW { // parse error message
 	case "验证码错误!":
 		err = ErrWrongCaptcha
-	case "":
-		err = ErrCouldNotLogin
 	default:
-		err = fmt.Errorf("login failed: %s", cw)
+		err = fmt.Errorf("login failed: %s", form.CW)
 	}
 	return
 }
 
-func (c *punchClient) recognizeCaptcha() (vcode string, err error) {
+func recognizeCaptcha(c *punchClient) (vcode string, err error) {
 	var req *http.Request
 	req, err = getWithContext(c.ctx, host+"/Vcode.ASPX")
 	if err != nil {
