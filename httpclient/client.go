@@ -21,17 +21,7 @@ func Punch(ctx context.Context, account interface{}) (err error) {
 	}()
 
 	c := newClient(ctx)
-	for i := 0; i < 3; i++ { // 重试 3 次
-		err = c.login(account.(*Account)) // 登录，获取cookie
-		switch err {
-		case ErrWrongCaptcha:
-			if wait(ctx, time.Second*2) != nil {
-				return
-			}
-		default:
-			break
-		}
-	}
+	err = c.login(account.(*Account)) // 登录，获取cookie
 	if err != nil {
 		return
 	}
