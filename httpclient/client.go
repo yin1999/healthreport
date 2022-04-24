@@ -26,7 +26,7 @@ func Punch(ctx context.Context, account interface{}) (err error) {
 		return
 	}
 
-	var form map[string]string
+	var form url.Values
 	form, err = c.getFormDetail() // 获取打卡列表信息
 	if err != nil {
 		return
