@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 )
@@ -15,7 +14,7 @@ const (
 	symbolJSON htmlSymbol = iota
 	symbolString
 
-	reportURI = "/Mobile/rsbulid/r_3_3_st_jkdk.aspx"
+	reportPath = "/Mobile/rsbulid/r_3_3_st_jkdk.aspx"
 )
 
 var (
@@ -23,7 +22,7 @@ var (
 	ErrIncompleteForm = errors.New("form: incomplete form")
 )
 
-var fields = [...]string{"__EVENTARGUMENT", "__VIEWSTATE", "__VIEWSTATEENCRYPTED", "__VIEWSTATEGENERATOR",
+var reportFields = [...]string{"__EVENTARGUMENT", "__VIEWSTATE", "__VIEWSTATEENCRYPTED", "__VIEWSTATEGENERATOR",
 	"bdbz", "bjhm", "brcnnrss", "brjkqk", "brjkqkdm", "ck_brcnnrss", "cw", "czsj",
 	"databcdel", "databcxs", "dcbz", "fjmf", "hjzd", "jjzt", "jkmys", "jkmysdm", "lszt",
 	"mc", "msie", "ndbz", "pa", "pb", "pc", "pd", "pe", "pf", "pg", "pkey", "pkey4", "psrc",
@@ -36,9 +35,9 @@ var fields = [...]string{"__EVENTARGUMENT", "__VIEWSTATE", "__VIEWSTATEENCRYPTED
 var fixedFields = map[string]string{"__EVENTTARGET": "databc"}
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail() (form map[string]string, err error) {
+func (c *punchClient) getFormDetail() (form url.Values, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, host+reportURI)
+	req, err = getWithContext(c.ctx, host+reportPath)
 	if err != nil {
 		return
 	}
@@ -48,44 +47,31 @@ func (c *punchClient) getFormDetail() (form map[string]string, err error) {
 		return
 	}
 	defer drainBody(res.Body)
-	bufferReader := bufio.NewReader(res.Body)
-	form = make(map[string]string, len(fields)+len(fixedFields))
-	for _, key := range fields {
-		form[key] = ""
+
+	form = make(url.Values, len(reportFields)+len(fixedFields))
+	for _, key := range reportFields {
+		form[key] = nil
 	}
 
-	var key, value string
-	for {
-		key, value, err = parseHTML(bufferReader, "<input")
-		if err != nil {
-			break
+	err = fillMap(res.Body, form, func(s string) bool {
+		return form.Has(s)
+	})
+
+	if err == nil {
+		for key, value := range fixedFields {
+			form.Set(key, value)
 		}
-		if _, ok := form[key]; ok {
-			form[key] = value
-		}
-	}
-	for key, value := range fixedFields {
-		form[key] = value
-	}
-	if err == io.EOF {
-		err = nil
-	}
-	if err != nil {
+	} else {
 		err = fmt.Errorf("get form data failed, err: %w", err)
 	}
 	return
 }
 
 // postForm 提交打卡表单
-func (c *punchClient) postForm(form map[string]string) error {
-	value := make(url.Values, len(form))
-	for key, val := range form {
-		value.Set(key, val)
-	}
-
+func (c *punchClient) postForm(form url.Values) error {
 	req, err := postFormWithContext(c.ctx,
-		host+reportURI,
-		value,
+		host+reportPath,
+		form,
 	)
 	if err != nil {
 		return err

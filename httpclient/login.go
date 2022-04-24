@@ -1,18 +1,16 @@
 package httpclient
 
 import (
-	"bufio"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/google/go-querystring/query"
 	"github.com/yin1999/healthreport/utils/captcha"
 )
 
@@ -21,21 +19,14 @@ var (
 	ErrWrongCaptcha = errors.New("login: wrong captcha")
 	// ErrCannotRecognizeCaptcha could not recognize captcha
 	ErrCannotRecognizeCaptcha = errors.New("login: cannot recognize captcha")
+	// loginFields part of fields for login form,
+	// must be sorted
+	loginFields = [...]string{"__VIEWSTATE", "__VIEWSTATEENCRYPTED", "__VIEWSTATEGENERATOR",
+		"cw", "yxdm",
+	}
 )
 
 const loginURL = host + "/login.aspx"
-
-type loginForm struct {
-	Username           string `url:"userbh"`
-	Password           string `url:"pas2s"`
-	VCode              string `url:"vcode"`
-	CW                 string `fill:"cw" url:"cw"`
-	ViewState          string `fill:"__VIEWSTATE" url:"__VIEWSTATE"`
-	ViewStateGenerator string `fill:"__VIEWSTATEGENERATOR" url:"__VIEWSTATEGENERATOR"`
-	ViewStateEncrypted string `fill:"__VIEWSTATEENCRYPTED" url:"__VIEWSTATEENCRYPTED"`
-	XZBZ               string `url:"xzbz"` // default to 1
-	YXDM               string `fill:"yxdm" url:"yxdm"`
-}
 
 // login 登录系统
 func (c *punchClient) login(account *Account) (err error) {
@@ -44,11 +35,10 @@ func (c *punchClient) login(account *Account) (err error) {
 	if err != nil {
 		return
 	}
-	form := &loginForm{
-		Username: account.Username,
-		Password: hex.EncodeToString(hash.Sum(nil)),
-		XZBZ:     "1",
-	}
+	form := make(url.Values, len(loginFields)+4) // 4 is for account, password, xzbz, vcode
+	form.Set("userbh", account.Username)
+	form.Set("pas2s", hex.EncodeToString(hash.Sum(nil)))
+	form.Set("xzbz", "1")
 	err = loginGet(c, form)
 	if err != nil {
 		return
@@ -67,7 +57,7 @@ func (c *punchClient) login(account *Account) (err error) {
 	return
 }
 
-func loginGet(c *punchClient, form *loginForm) error {
+func loginGet(c *punchClient, form url.Values) error {
 	req, err := getWithContext(c.ctx, loginURL)
 	if err != nil {
 		return err
@@ -75,22 +65,24 @@ func loginGet(c *punchClient, form *loginForm) error {
 	var res *http.Response
 	res, err = c.httpClient.Do(req)
 	defer drainBody(res.Body)
-	return parseForm(res.Body, form)
+	return fillMap(res.Body, form, loginFormShouldFill)
 }
 
-func loginPost(c *punchClient, form *loginForm) (err error) {
-	form.VCode, err = recognizeCaptcha(c)
+func loginFormShouldFill(key string) bool {
+	i := sort.SearchStrings(loginFields[:], key)
+	return i < len(loginFields) && loginFields[i] == key
+}
+
+func loginPost(c *punchClient, form url.Values) (err error) {
+	var vcode string
+	vcode, err = recognizeCaptcha(c)
 	if err != nil {
 		return
 	}
-
-	var value url.Values
-	if value, err = query.Values(form); err != nil {
-		return
-	}
+	form.Set("vcode", vcode)
 
 	var req *http.Request
-	req, err = postFormWithContext(c.ctx, loginURL, value)
+	req, err = postFormWithContext(c.ctx, loginURL, form)
 	if err != nil {
 		return
 	}
@@ -106,15 +98,15 @@ func loginPost(c *punchClient, form *loginForm) (err error) {
 	if res.StatusCode == http.StatusFound { // redirect after login success
 		return
 	}
-	err = parseForm(res.Body, form) // if login failed, parse form data for next post
+	err = fillMap(res.Body, form, loginFormShouldFill) // if login failed, parse form data for next post
 	if err != nil {
 		return
 	}
-	switch form.CW { // parse error message
+	switch v := form.Get("cw"); v { // parse error message
 	case "验证码错误!":
 		err = ErrWrongCaptcha
 	default:
-		err = fmt.Errorf("login failed: %s", form.CW)
+		err = fmt.Errorf("login failed: %s", v)
 	}
 	return
 }
@@ -150,27 +142,5 @@ func recognizeCaptcha(c *punchClient) (vcode string, err error) {
 		}
 	}
 	err = ErrCannotRecognizeCaptcha
-	return
-}
-
-func parseForm(body io.Reader, form *loginForm) (err error) {
-	bufferReader := bufio.NewReader(body)
-	const inputElement = "<input "
-
-	var filler *structFiller
-	if filler, err = newFiller(form, "fill"); err != nil {
-		return
-	}
-	var key, value string
-	for {
-		key, value, err = parseHTML(bufferReader, inputElement)
-		if err != nil {
-			break
-		}
-		filler.fill(key, value)
-	}
-	if err == io.EOF {
-		err = nil
-	}
 	return
 }
