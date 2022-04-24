@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 )
@@ -48,24 +47,17 @@ func (c *punchClient) getFormDetail() (form url.Values, err error) {
 		return
 	}
 	defer drainBody(res.Body)
-	bufferReader := bufio.NewReader(res.Body)
+
 	form = make(url.Values, len(reportFields)+len(fixedFields))
 	for _, key := range reportFields {
 		form[key] = nil
 	}
 
-	var key, value string
-	for {
-		key, value, err = parseHTML(bufferReader, "<input")
-		if err != nil {
-			break
-		}
-		if _, ok := form[key]; ok {
-			form.Set(key, value)
-		}
-	}
-	if err == io.EOF {
-		err = nil
+	err = fillMap(res.Body, form, func(s string) bool {
+		return form.Has(s)
+	})
+
+	if err == nil {
 		for key, value := range fixedFields {
 			form.Set(key, value)
 		}

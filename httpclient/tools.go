@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/xml"
-	"errors"
 	"io"
 	"net/http"
 	"net/textproto"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 )
@@ -124,47 +122,23 @@ func elementParse(v string) (*elementInput, error) {
 	return out, err
 }
 
-type structFiller struct {
-	m map[string]int
-	v reflect.Value
-}
-
-// newFiller default tag: fill.
-// The item must be a pointer
-func newFiller(item interface{}, tag string) (*structFiller, error) {
-	v := reflect.ValueOf(item).Elem()
-	if !v.CanAddr() {
-		return nil, errors.New("reflect: item must be a pointer")
+// fillMap fill the map with the key and value when `use` returns true.
+// If use is nil, all the key and value will be filled
+func fillMap(reader io.Reader, v url.Values, use func(string) bool) error {
+	if use == nil {
+		use = func(string) bool { return true }
 	}
-	if tag == "" {
-		tag = "fill"
-	}
-	findTagName := func(t reflect.StructTag) (string, error) {
-		if tn, ok := t.Lookup(tag); ok && len(tn) > 0 {
-			return strings.Split(tn, ",")[0], nil
-		}
-		return "", errors.New("skip")
-	}
-	s := &structFiller{
-		m: make(map[string]int),
-		v: v,
-	}
-	for i := 0; i < v.NumField(); i++ {
-		typeField := v.Type().Field(i)
-		name, err := findTagName(typeField.Tag)
+	bufferReader := bufio.NewReader(reader)
+	for {
+		key, value, err := parseHTML(bufferReader, "<input ")
 		if err != nil {
-			continue
+			if err == io.EOF {
+				err = nil
+			}
+			return err
 		}
-		s.m[name] = i
+		if use(key) {
+			v.Set(key, value)
+		}
 	}
-	return s, nil
-}
-
-func (s *structFiller) fill(key string, value interface{}) error {
-	fieldNum, ok := s.m[key]
-	if !ok {
-		return errors.New("reflect: field <" + key + "> not exists")
-	}
-	s.v.Field(fieldNum).Set(reflect.ValueOf(value))
-	return nil
 }
