@@ -9,7 +9,6 @@ import (
 	"net/textproto"
 	"net/url"
 	"strings"
-	"time"
 )
 
 const host = "http://smst.hhu.edu.cn"
@@ -91,16 +90,6 @@ type elementInput struct {
 	Key   string `xml:"name,attr"`
 	Value string `xml:"value,attr"`
 	ID    string `xml:"id,attr"`
-}
-
-func wait(ctx context.Context, duration time.Duration) error {
-	timer := time.NewTimer(duration)
-	select {
-	case <-timer.C:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
 
 func elementParse(v string) (*elementInput, error) {

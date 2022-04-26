@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yin1999/healthreport/utils"
 	"github.com/yin1999/healthreport/utils/captcha"
 )
 
@@ -47,7 +48,7 @@ func (c *punchClient) login(account *Account) (err error) {
 		err = loginPost(c, form)
 		switch err {
 		case ErrWrongCaptcha, ErrCannotRecognizeCaptcha:
-			if wait(c.ctx, time.Second*2) != nil {
+			if utils.Wait(c.ctx, time.Second*2) != nil {
 				return
 			}
 		default:
@@ -137,7 +138,7 @@ func recognizeCaptcha(c *punchClient) (vcode string, err error) {
 		if len(vcode) == 4 {
 			return
 		}
-		if err = wait(c.ctx, time.Second); err != nil {
+		if err = utils.Wait(c.ctx, time.Second); err != nil {
 			return
 		}
 	}

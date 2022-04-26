@@ -14,6 +14,7 @@ import (
 
 	client "github.com/yin1999/healthreport/httpclient"
 	"github.com/yin1999/healthreport/serve"
+	"github.com/yin1999/healthreport/utils"
 	"github.com/yin1999/healthreport/utils/captcha"
 	"github.com/yin1999/healthreport/utils/config"
 	"github.com/yin1999/healthreport/utils/email"
@@ -105,16 +106,10 @@ func app(ctx context.Context, ready func()) {
 		PunchFunc:    client.Punch,
 	}
 
-	{
-		timer := time.NewTimer(5 * time.Second)
-		select {
-		case <-timer.C:
-			break
-		case <-ctx.Done():
-			timer.Stop()
-			return
-		}
+	if utils.Wait(ctx, 5*time.Second) != nil {
+		return
 	}
+
 	err = serveCfg.PunchServe(ctx, account)
 	if err != nil && err != context.Canceled {
 		logger.Fatalln(err.Error())
