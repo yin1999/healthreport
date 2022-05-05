@@ -45,7 +45,7 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 	}
 
 	var (
-		form   map[string]string
+		form   map[string]interface{}
 		params *QueryParam
 	)
 	form, params, err = c.getFormDetail(path) // 获取打卡列表信息

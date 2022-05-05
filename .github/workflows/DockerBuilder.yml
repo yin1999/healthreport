@@ -53,6 +53,6 @@ jobs:
         cache-to: type=gha,mode=max
         tags: |
           yin199909/healthreport:${{ env.VERSION }}
-          yin199909/healthreport:latest
+          yin199909/healthreport:latest-v1
           ghcr.io/${{ github.repository_owner }}/healthreport:${{ env.VERSION }}
-          ghcr.io/${{ github.repository_owner }}/healthreport:latest
+          ghcr.io/${{ github.repository_owner }}/healthreport:latest-v1

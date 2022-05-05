@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -68,7 +69,7 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 }
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail(path string) (form map[string]string, params *QueryParam, err error) {
+func (c *punchClient) getFormDetail(path string) (form map[string]interface{}, params *QueryParam, err error) {
 	var req *http.Request
 	req, err = getWithContext(c.ctx, "http://"+reportDomain+path)
 	if err != nil {
@@ -107,7 +108,7 @@ func (c *punchClient) getFormDetail(path string) (form map[string]string, params
 		return
 	}
 
-	tmpForm := make(map[string]string)
+	tmpForm := make(map[string]interface{})
 	if err = json.Unmarshal(formData, &tmpForm); err != nil {
 		return
 	}
@@ -119,20 +120,22 @@ func (c *punchClient) getFormDetail(path string) (form map[string]string, params
 
 	form = tmpForm
 	params = &QueryParam{
-		Wid:    string(wid),
-		UserID: form["USERID"],
+		Wid: string(wid),
 	}
+	params.UserID, _ = form["USERID"].(string)
 
 	delete(tmpForm, "CLRQ")   // 删除填报时间字段
 	delete(tmpForm, "USERID") // 删除UserID字段
+	delete(tmpForm, "RN")
 	return
 }
 
 // postForm 提交打卡表单
-func (c *punchClient) postForm(form map[string]string, params *QueryParam) error {
+func (c *punchClient) postForm(form map[string]interface{}, params *QueryParam) error {
 	value := make(url.Values, len(form))
 	for key, val := range form {
-		value.Set(key, val)
+		v, _ := val.(string)
+		value.Set(key, v)
 	}
 
 	req, err := postFormWithContext(c.ctx,
@@ -200,12 +203,12 @@ func getSlice(data string, startSymbol, endSymbol byte, containSymbol bool) ([]b
 	return res, nil
 }
 
-func zeroValueCheck(item map[string]string) error {
+func zeroValueCheck(item map[string]interface{}) error {
 	if len(item) == 0 {
 		return errors.New("check: the map is empty")
 	}
 	for key, value := range item {
-		if value == "" {
+		if value == nil || reflect.ValueOf(value).IsZero() {
 			return errors.New("check: '" + key + "' has zero value")
 		}
 	}
