@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yin1999/healthreport/utils"
-	"github.com/yin1999/healthreport/utils/captcha"
+	"github.com/yin1999/healthreport/v2/utils"
+	"github.com/yin1999/healthreport/v2/utils/captcha"
 )
 
 var (

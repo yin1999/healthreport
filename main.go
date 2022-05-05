@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	client "github.com/yin1999/healthreport/httpclient"
-	"github.com/yin1999/healthreport/serve"
-	"github.com/yin1999/healthreport/utils"
-	"github.com/yin1999/healthreport/utils/captcha"
-	"github.com/yin1999/healthreport/utils/config"
-	"github.com/yin1999/healthreport/utils/email"
-	"github.com/yin1999/healthreport/utils/systemd"
+	client "github.com/yin1999/healthreport/v2/httpclient"
+	"github.com/yin1999/healthreport/v2/serve"
+	"github.com/yin1999/healthreport/v2/utils"
+	"github.com/yin1999/healthreport/v2/utils/captcha"
+	"github.com/yin1999/healthreport/v2/utils/config"
+	"github.com/yin1999/healthreport/v2/utils/email"
+	"github.com/yin1999/healthreport/v2/utils/systemd"
 )
 
 // build info
