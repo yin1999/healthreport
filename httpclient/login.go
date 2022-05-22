@@ -1,10 +1,13 @@
 package httpclient
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"net/http"
 	"net/url"
 	"sort"
@@ -124,15 +127,12 @@ func recognizeCaptcha(c *punchClient) (vcode string, err error) {
 		if res, err = c.httpClient.Do(req); err != nil {
 			return
 		}
-		vImg := make([]byte, res.ContentLength)
-		var n int
-		n, err = res.Body.Read(vImg)
-		res.Body.Close()
-		if n != int(res.ContentLength) && err != nil {
-			err = fmt.Errorf("get captcha image failed: %w", err)
+		var vImg []byte
+		if vImg, err = readImage(res); err != nil {
 			return
 		}
-		if vcode, err = captcha.Recognize(vImg[:n]); err != nil {
+
+		if vcode, err = captcha.Recognize(vImg); err != nil {
 			return
 		}
 		if len(vcode) == 4 {
@@ -143,5 +143,22 @@ func recognizeCaptcha(c *punchClient) (vcode string, err error) {
 		}
 	}
 	err = ErrCannotRecognizeCaptcha
+	return
+}
+
+func readImage(res *http.Response) (data []byte, err error) {
+	defer drainBody(res.Body)
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get captcha image failed: %s", res.Status)
+	}
+	var img image.Image
+	img, err = jpeg.Decode(res.Body)
+	if err == nil {
+		buf := new(bytes.Buffer)
+		err = jpeg.Encode(buf, img, nil)
+		if err == nil {
+			data = buf.Bytes()
+		}
+	}
 	return
 }
