@@ -24,7 +24,7 @@ const (
 	symbolString
 )
 
-const reportDomain = "form.hhu.edu.cn"
+const reportDomain = "dailyreport.hhu.edu.cn"
 
 var (
 	//ErrCannotParseData cannot parse html data error
@@ -34,7 +34,7 @@ var (
 )
 
 // getFormSessionID 获取打卡系统的SessionID
-func (c *punchClient) getFormSessionID() (path string, err error) {
+func (c *punchClient) getFormSessionID() (err error) {
 	var req *http.Request
 	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/form/list")
 	if err != nil {
@@ -51,27 +51,13 @@ func (c *punchClient) getFormSessionID() (path string, err error) {
 		err = ErrCouldNotGetFormSession
 		return
 	}
-
-	bufferReader := bufio.NewReader(res.Body)
-
-	for err == nil && !strings.HasPrefix(path, `<a href="/pdc/formDesignApi/S/`) {
-		path, err = scanLine(bufferReader)
-	}
-
-	if path != "" {
-		var data []byte
-		data, err = parseData(path, symbolString)
-		path = string(data)
-	} else {
-		err = fmt.Errorf("get form url failed, err: %w", err)
-	}
 	return
 }
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail(path string) (form map[string]interface{}, params *QueryParam, err error) {
+func (c *punchClient) getFormDetail() (form map[string]interface{}, params *QueryParam, err error) {
 	var req *http.Request
-	req, err = getWithContext(c.ctx, "http://"+reportDomain+path)
+	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/xznuPIjG")
 	if err != nil {
 		return
 	}
