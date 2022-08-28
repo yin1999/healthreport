@@ -38,8 +38,7 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 	}
 	defer c.logout()
 
-	var path string
-	path, err = c.getFormSessionID() // 获取打卡系统的cookie
+	err = c.getFormSessionID() // 获取打卡系统的cookie
 	if err != nil {
 		return
 	}
@@ -48,7 +47,7 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 		form   map[string]interface{}
 		params *QueryParam
 	)
-	form, params, err = c.getFormDetail(path) // 获取打卡列表信息
+	form, params, err = c.getFormDetail() // 获取打卡列表信息
 	if err != nil {
 		return
 	}
