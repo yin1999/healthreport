@@ -45,11 +45,10 @@ func (c *punchClient) getFormSessionID() (err error) {
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
 	}
-	defer drainBody(res.Body)
+	drainBody(res.Body)
 
 	if c.httpClient.Jar.Cookies(&url.URL{Host: reportDomain}) == nil {
 		err = ErrCouldNotGetFormSession
-		return
 	}
 	return
 }
