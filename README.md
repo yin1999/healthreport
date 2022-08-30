@@ -6,6 +6,8 @@
 一键打卡，用到就是爽到  
 云函数版本请访问[健康打卡_河海大学版_FC](https://github.com/yin1999/healthreport_fc)(无服务器版，配置方便，**零成本**)
 
+**注意**：此版本适用于研究生健康打卡，本科生健康打卡请转至[main 分支](https://github.com/yin1999/healthreport)。
+
 ## 状态
 
 目前，[最新版本](https://github.com/yin1999/healthreport/releases/latest)具有以下特性:
