@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 
@@ -23,6 +22,18 @@ const (
 	symbolJSON htmlSymbol = iota
 	symbolString
 )
+
+type formValue string
+
+var _ json.Unmarshaler = (*formValue)(nil)
+
+func (v *formValue) UnmarshalJSON(data []byte) error {
+	if data[0] == '"' {
+		data = data[1 : len(data)-1]
+	}
+	*v = formValue(data)
+	return nil
+}
 
 const reportDomain = "dailyreport.hhu.edu.cn"
 
@@ -54,7 +65,7 @@ func (c *punchClient) getFormSessionID() (err error) {
 }
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail() (form map[string]interface{}, params *QueryParam, err error) {
+func (c *punchClient) getFormDetail() (form map[string]formValue, params *QueryParam, err error) {
 	var req *http.Request
 	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/xznuPIjG")
 	if err != nil {
@@ -93,7 +104,7 @@ func (c *punchClient) getFormDetail() (form map[string]interface{}, params *Quer
 		return
 	}
 
-	tmpForm := make(map[string]interface{})
+	tmpForm := make(map[string]formValue)
 	if err = json.Unmarshal(formData, &tmpForm); err != nil {
 		return
 	}
@@ -101,13 +112,13 @@ func (c *punchClient) getFormDetail() (form map[string]interface{}, params *Quer
 	if err = zeroValueCheck(tmpForm); err != nil {
 		return
 	}
-	tmpForm["DATETIME_CYCLE"] = time.Now().In(timeZone).Format("2006/01/02") // 表单中增加打卡日期
+	tmpForm["DATETIME_CYCLE"] = formValue(time.Now().In(timeZone).Format("2006/01/02")) // 表单中增加打卡日期
 
 	form = tmpForm
 	params = &QueryParam{
 		Wid: string(wid),
 	}
-	params.UserID, _ = form["USERID"].(string)
+	params.UserID = string(form["USERID"])
 
 	delete(tmpForm, "CLRQ")   // 删除填报时间字段
 	delete(tmpForm, "USERID") // 删除UserID字段
@@ -116,11 +127,10 @@ func (c *punchClient) getFormDetail() (form map[string]interface{}, params *Quer
 }
 
 // postForm 提交打卡表单
-func (c *punchClient) postForm(form map[string]interface{}, params *QueryParam) error {
+func (c *punchClient) postForm(form map[string]formValue, params *QueryParam) error {
 	value := make(url.Values, len(form))
 	for key, val := range form {
-		v, _ := val.(string)
-		value.Set(key, v)
+		value.Set(key, string(val))
 	}
 
 	req, err := postFormWithContext(c.ctx,
@@ -188,12 +198,12 @@ func getSlice(data string, startSymbol, endSymbol byte, containSymbol bool) ([]b
 	return res, nil
 }
 
-func zeroValueCheck(item map[string]interface{}) error {
+func zeroValueCheck(item map[string]formValue) error {
 	if len(item) == 0 {
 		return errors.New("check: the map is empty")
 	}
 	for key, value := range item {
-		if value == nil || reflect.ValueOf(value).IsZero() {
+		if value == "" {
 			return errors.New("check: '" + key + "' has zero value")
 		}
 	}
