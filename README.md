@@ -1,6 +1,6 @@
 # 河海大学健康打卡
 
-[![build](https://github.com/yin1999/healthreport/actions/workflows/Build.yml/badge.svg)](https://github.com/yin1999/healthreport/actions/workflows/Build.yml?query=branch%3Amain) [![Go Report Card](https://goreportcard.com/badge/github.com/yin1999/healthreport)](https://goreportcard.com/report/github.com/yin1999/healthreport) [![Go Reference](https://pkg.go.dev/badge/github.com/yin1999/healthreport/v2.svg)](https://pkg.go.dev/github.com/yin1999/healthreport/v2)
+[![build](https://github.com/yin1999/healthreport/actions/workflows/Build.yml/badge.svg)](https://github.com/yin1999/healthreport/actions/workflows/Build.yml?query=branch%3Amain) [![Go Report Card](https://goreportcard.com/badge/github.com/yin1999/healthreport/v2)](https://goreportcard.com/report/github.com/yin1999/healthreport/v2) [![Go Reference](https://pkg.go.dev/badge/github.com/yin1999/healthreport/v2.svg)](https://pkg.go.dev/github.com/yin1999/healthreport/v2)
 
 项目使用http请求模拟整个打卡过程，速度很快！  
 一键打卡，用到就是爽到  

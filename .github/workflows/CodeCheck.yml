@@ -15,4 +15,4 @@ jobs:
     steps:
     - name: Refresh report card
       run: |
-        curl -d "repo=github.com/${{ github.repository }}" -X POST https://goreportcard.com/checks
+        curl -d "repo=github.com/${{ github.repository }}/v2" -X POST https://goreportcard.com/checks
