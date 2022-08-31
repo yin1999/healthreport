@@ -68,6 +68,9 @@ func loginGet(c *punchClient, form url.Values) error {
 	}
 	var res *http.Response
 	res, err = c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
 	defer drainBody(res.Body)
 	return fillMap(res.Body, form, loginFormShouldFill)
 }
