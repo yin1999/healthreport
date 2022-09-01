@@ -127,7 +127,7 @@ func initApp() {
 	version := flagSet.Bool("v", false, "show version and exit")
 	checkEmail := flagSet.Bool("e", false, "check email")
 	genEmailCfg := flagSet.Bool("g", false, "generate email config")
-	save := flagSet.Bool("save", false, "save account info to file")
+	save := flagSet.Bool("save", false, "save account info to file (will be ignored when account info is not provided)")
 	insecure := flagSet.Bool("k", false, "allow insecure server connections when using SSL")
 
 	flagSet.StringVar(&account.Username, "u", "", "set username")
@@ -147,6 +147,7 @@ func initApp() {
 		fmt.Printf("Go Version:             %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		fmt.Printf("Build Time:             %s\n", BuildTime)
 		fmt.Printf("Program Commit ID:      %s\n", ProgramCommitID)
+		os.Exit(0)
 	}
 
 	if *checkEmail {
@@ -159,6 +160,7 @@ func initApp() {
 			logger.Fatalf("email check: failed, err: %s\n", err.Error())
 		}
 		fmt.Print("email check: pass\n")
+		os.Exit(0)
 	}
 
 	if *genEmailCfg {
@@ -169,6 +171,7 @@ func initApp() {
 		if err := storeJson(cfg, mailConfigPath); err != nil {
 			logger.Fatalln(err.Error())
 		}
+		os.Exit(0)
 	}
 
 	fromArgs := account.Username != "" || account.Password != ""
@@ -184,9 +187,6 @@ func initApp() {
 		if err := storeJson(account, accountFilename); err != nil {
 			logger.Fatalf("account: save to file failed(Err: %s)\n", err.Error())
 		}
-	}
-
-	if *version || *checkEmail || *genEmailCfg || *save {
 		os.Exit(0)
 	}
 
