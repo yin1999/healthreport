@@ -5,12 +5,6 @@ import (
 	"net/http"
 )
 
-// QueryParam query param struct
-type QueryParam struct {
-	Wid    string `url:"wid"`
-	UserID string `url:"userId"`
-}
-
 type punchClient struct {
 	ctx        context.Context
 	httpClient *http.Client

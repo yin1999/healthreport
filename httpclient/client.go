@@ -44,15 +44,15 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 	}
 
 	var (
-		form   map[string]formValue
-		params *QueryParam
+		form  map[string]formValue
+		query string
 	)
-	form, params, err = c.getFormDetail() // 获取打卡列表信息
+	form, query, err = c.getFormDetail() // 获取打卡列表信息
 	if err != nil {
 		return
 	}
 
-	err = c.postForm(form, params) // 提交表单
+	err = c.postForm(form, query) // 提交表单
 	return
 }
 

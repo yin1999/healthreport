@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/google/go-querystring/query"
 )
 
 // ErrCouldNotGetFormSession get form session id failed
@@ -65,7 +63,7 @@ func (c *punchClient) getFormSessionID() (err error) {
 }
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail() (form map[string]formValue, params *QueryParam, err error) {
+func (c *punchClient) getFormDetail() (form map[string]formValue, query string, err error) {
 	var req *http.Request
 	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/xznuPIjG")
 	if err != nil {
@@ -112,22 +110,21 @@ func (c *punchClient) getFormDetail() (form map[string]formValue, params *QueryP
 	if err = zeroValueCheck(tmpForm); err != nil {
 		return
 	}
-	tmpForm["DATETIME_CYCLE"] = formValue(time.Now().In(timeZone).Format("2006/01/02")) // 表单中增加打卡日期
-
-	form = tmpForm
-	params = &QueryParam{
-		Wid: string(wid),
-	}
-	params.UserID = string(form["USERID"])
 
 	delete(tmpForm, "CLRQ")   // 删除填报时间字段
 	delete(tmpForm, "USERID") // 删除UserID字段
 	delete(tmpForm, "RN")
+
+	tmpForm["DATETIME_CYCLE"] = formValue(time.Now().In(timeZone).Format("2006/01/02")) // 表单中增加打卡日期
+
+	form = tmpForm
+	query = fmt.Sprintf("wid=%s&userId=%s", string(wid), string(form["USERID"]))
+
 	return
 }
 
 // postForm 提交打卡表单
-func (c *punchClient) postForm(form map[string]formValue, params *QueryParam) error {
+func (c *punchClient) postForm(form map[string]formValue, query string) error {
 	value := make(url.Values, len(form))
 	for key, val := range form {
 		value.Set(key, string(val))
@@ -141,12 +138,7 @@ func (c *punchClient) postForm(form map[string]formValue, params *QueryParam) er
 		return err
 	}
 
-	value, err = query.Values(params)
-	if err != nil {
-		return err
-	}
-
-	req.URL.RawQuery = value.Encode()
+	req.URL.RawQuery = query
 
 	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {

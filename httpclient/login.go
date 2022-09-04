@@ -37,11 +37,8 @@ func (c *punchClient) login(account *Account) (err error) {
 	if err != nil {
 		return
 	}
-	q := url.Values{
-		"username":    []string{account.Username},
-		"pwdEncrypt2": []string{"pwdEncryptSalt"},
-	}
-	req.URL.RawQuery = q.Encode()
+
+	req.URL.RawQuery = "pwdEncrypt2=pwdEncryptSalt&username=" + url.QueryEscape(account.Username)
 	var res *http.Response
 	if res, err = c.httpClient.Do(req); err != nil {
 		return
@@ -130,16 +127,17 @@ func (c *punchClient) logout() (err error) {
 	if err = c.ctx.Err(); err != nil {
 		return
 	}
-	req, err := getWithContext(c.ctx, logoutURL)
+	var req *http.Request
+	req, err = getWithContext(c.ctx, logoutURL)
 	if err != nil {
 		return
 	}
+	var res *http.Response
 	c.httpClient.CheckRedirect = notRedirect // not redirect
-	res, err := c.httpClient.Do(req)
-	if err != nil {
-		return
+	res, err = c.httpClient.Do(req)
+	if err == nil {
+		drainBody(res.Body)
 	}
-	drainBody(res.Body)
 	return
 }
 
@@ -204,11 +202,11 @@ func newFiller(item interface{}, tag string) (*structFiller, error) {
 	return s, nil
 }
 
-func (s *structFiller) fill(key string, value interface{}) error {
+func (s *structFiller) fill(key string, value string) error {
 	fieldNum, ok := s.m[key]
 	if !ok {
 		return errors.New("reflect: field <" + key + "> not exists")
 	}
-	s.v.Field(fieldNum).Set(reflect.ValueOf(value))
+	s.v.Field(fieldNum).SetString(value)
 	return nil
 }
