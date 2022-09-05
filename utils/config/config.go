@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"flag"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +34,7 @@ type Printer interface {
 
 // SetFlag load config from args
 func (cfg *Config) SetFlag(flag *flag.FlagSet) {
-	if field := reflect.ValueOf(cfg.PunchTime); field.IsZero() {
+	if cfg.PunchTime == (Time{}) {
 		now := time.Now()
 		cfg.PunchTime.Hour = now.Hour()
 		cfg.PunchTime.Minute = now.Minute()
