@@ -38,9 +38,16 @@ func Punch(ctx context.Context, account interface{}, timeout time.Duration) (err
 	}
 	defer c.logout()
 
-	err = c.getFormSessionID() // 获取打卡系统的cookie
-	if err != nil {
-		return
+	for {
+		select {
+		case <-c.ctx.Done():
+			return c.ctx.Err()
+		default:
+		}
+		err = c.getFormSessionID() // 获取打卡系统的cookie
+		if err == nil {
+			break
+		}
 	}
 
 	var (
