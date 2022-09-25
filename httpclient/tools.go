@@ -7,6 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"net/textproto"
@@ -110,4 +111,20 @@ func scanLine(reader *bufio.Reader) (string, error) {
 func drainBody(body io.ReadCloser) {
 	io.Copy(io.Discard, body)
 	body.Close()
+}
+
+// wrapError 包装错误，并解析 URL 错误
+func wrapError(err error, service string) error {
+	if err == nil {
+		return err
+	}
+	return fmt.Errorf("%s: %w", service, parseURLError(err))
+}
+
+// parseURLError 解析URL错误
+func parseURLError(err error) error {
+	if v, ok := err.(*url.Error); ok {
+		err = v.Err
+	}
+	return err
 }
