@@ -111,14 +111,14 @@ func (c *punchClient) getFormDetail() (form map[string]formValue, query string, 
 		return
 	}
 
+	query = fmt.Sprintf("wid=%s&userId=%s", string(wid), tmpForm["USERID"])
+
 	delete(tmpForm, "CLRQ")   // 删除填报时间字段
 	delete(tmpForm, "USERID") // 删除UserID字段
 	delete(tmpForm, "RN")
 
 	tmpForm["DATETIME_CYCLE"] = formValue(time.Now().In(timeZone).Format("2006/01/02")) // 表单中增加打卡日期
-
 	form = tmpForm
-	query = fmt.Sprintf("wid=%s&userId=%s", string(wid), string(form["USERID"]))
 
 	return
 }
