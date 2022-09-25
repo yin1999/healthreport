@@ -43,18 +43,18 @@ var (
 )
 
 // getFormSessionID 获取打卡系统的SessionID
-func (c *punchClient) getFormSessionID() (err error) {
+func (c *punchClient) getFormSessionID(retry uint8) (err error) {
 	var req *http.Request
 	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/form/list")
 	if err != nil {
 		return
 	}
 
-	var res *http.Response
-	if res, err = c.httpClient.Do(req); err != nil {
+	var resp *http.Response
+	if resp, err = c.retryGet(req, retry); err != nil {
 		return
 	}
-	drainBody(res.Body)
+	drainBody(resp.Body)
 
 	if c.httpClient.Jar.Cookies(&url.URL{Host: reportDomain}) == nil {
 		err = ErrCouldNotGetFormSession
@@ -63,20 +63,20 @@ func (c *punchClient) getFormSessionID() (err error) {
 }
 
 // getFormDetail 获取打卡表单详细信息
-func (c *punchClient) getFormDetail() (form map[string]formValue, query string, err error) {
+func (c *punchClient) getFormDetail(retry uint8) (form map[string]formValue, query string, err error) {
 	var req *http.Request
 	req, err = getWithContext(c.ctx, "http://"+reportDomain+"/pdc/formDesignApi/S/xznuPIjG")
 	if err != nil {
 		return
 	}
 
-	var res *http.Response
-	if res, err = c.httpClient.Do(req); err != nil {
+	var resp *http.Response
+	if resp, err = c.retryGet(req, retry); err != nil {
 		return
 	}
 
 	var (
-		bufferReader  = bufio.NewReader(res.Body)
+		bufferReader  = bufio.NewReader(resp.Body)
 		wid, formData []byte
 		line          string
 	)
@@ -95,7 +95,7 @@ func (c *punchClient) getFormDetail() (form map[string]formValue, query string, 
 			break
 		}
 	}
-	drainBody(res.Body)
+	drainBody(resp.Body)
 
 	if err != nil {
 		err = fmt.Errorf("get form data failed, err: %w", err)
