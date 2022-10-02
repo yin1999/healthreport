@@ -80,7 +80,7 @@ func app(ctx context.Context, ready func()) {
 	}
 
 	logger.Print("正在验证账号密码\n")
-	err = client.LoginConfirm(ctx, account, punchTimeout)
+	err = client.LoginConfirm(ctx, account)
 	if err != nil {
 		logger.Fatalf("验证密码失败(Err: %s)\n", err.Error())
 	}
